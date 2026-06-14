@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useApp } from '@/components/app-provider'
 import { CameraCapture } from '@/components/camera-capture'
 import { SignaturePad, SignaturePadRef } from '@/components/signature-pad'
-import { Student, generateId, saveStudent } from '@/lib/database'
+import { Student, generateId } from '@/lib/database'
 import { ChevronLeft, ChevronRight, Check, AlertCircle } from 'lucide-react'
 import {
   Select,
@@ -146,7 +146,13 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
       updatedAt: new Date().toISOString(),
     }
 
-    saveStudent(student)
+    fetch('/api/students', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(student),
+})
     onComplete(student)
   }
 

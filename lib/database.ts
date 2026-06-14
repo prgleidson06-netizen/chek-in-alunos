@@ -141,7 +141,7 @@ return student
 export function deleteStudent(id: string): boolean {
   const students = getStudents()
   const filtered = students.filter(s => s.id !== id)
-  localStorage.setItem(STUDENTS_KEY, JSON.stringify(filtered))
+  // localStorage.setItem(STUDENTS_KEY, JSON.stringify(filtered))
   return filtered.length < students.length
 }
 
@@ -505,5 +505,5 @@ export function initializeDemoData(): void {
     },
   ]
   
-  localStorage.setItem(STUDENTS_KEY, JSON.stringify(demoStudents))
+ // localStorage.setItem(STUDENTS_KEY, JSON.stringify(demoStudents))
 }
