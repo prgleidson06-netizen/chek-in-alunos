@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import { Header } from '@/components/header'
 import { SearchSection } from '@/components/search-section'
@@ -9,9 +11,8 @@ import { EnrollmentForm } from '@/components/enrollment-form'
 import { AdminPanel } from '@/components/admin-panel'
 import { StudentsList } from '@/components/students-list'
 import { AppProvider, useApp } from '@/components/app-provider'
-import { Student, CheckIn } from '@/lib/database'
-import { toast } from 'sonner'
-import { Toaster } from 'sonner'
+import type { Student, CheckIn } from '@/lib/database'
+import { toast, Toaster } from 'sonner'
 
 function KioskApp() {
   const { t } = useApp()
@@ -23,13 +24,24 @@ function KioskApp() {
   const [showStudentsList, setShowStudentsList] = useState(false)
 
   const loadStudents = async () => {
-    const data = await fetch('/api/students').then(res => res.json())
-    setStudents(data)
+    try {
+      const res = await fetch('/api/students', { cache: 'no-store' })
+      const data = await res.json()
+      setStudents(Array.isArray(data) ? data : [])
+    } catch {
+      setStudents([])
+    }
   }
 
   const loadCheckIns = async () => {
-    const data = await fetch('/api/checkins').then(res => res.json())
-    setCheckIns(data)
+    try {
+      const res = await fetch('/api/checkins', { cache: 'no-store' })
+      const data = await res.json()
+      const valid = Array.isArray(data) ? data.filter(c => c.checkInTime && !isNaN(new Date(c.checkInTime).getTime())) : []
+      setCheckIns(valid)
+    } catch {
+      setCheckIns([])
+    }
   }
 
   const loadAll = async () => {
@@ -39,25 +51,23 @@ function KioskApp() {
 
   useEffect(() => {
     loadAll()
-    const interval = setInterval(loadAll, 15000)
+    // Sincroniza as telas a cada 5 segundos de forma dinâmica
+    const interval = setInterval(loadAll, 5000)
     return () => clearInterval(interval)
   }, [])
 
   const handleSearch = () => {
     const q = searchQuery.toLowerCase().trim()
-
     if (!q) {
       setFilteredStudents([])
       return
     }
-
-    const results = students.filter(s =>
-      s.firstName?.toLowerCase().includes(q) ||
-      s.lastName?.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q) ||
+    const results = students.filter(s => 
+      s.firstName?.toLowerCase().includes(q) || 
+      s.lastName?.toLowerCase().includes(q) || 
+      s.email?.toLowerCase().includes(q) || 
       s.id?.toLowerCase().includes(q)
     )
-
     setFilteredStudents(results)
   }
 
@@ -65,9 +75,8 @@ function KioskApp() {
     const now = new Date()
     const today = now.toISOString().split('T')[0]
 
-    const alreadyChecked = checkIns.some(c =>
-      c.studentId === student.id &&
-      c.checkInTime?.startsWith(today)
+    const alreadyChecked = checkIns.some(c => 
+      c.studentId === student.id && c.checkInTime && c.checkInTime.startsWith(today)
     )
 
     if (alreadyChecked) {
@@ -88,125 +97,84 @@ function KioskApp() {
       checkInTime: now.toISOString(),
     }
 
-    await fetch('/api/checkins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(checkIn),
-    })
+    // Atualização visual imediata na tela do dispositivo que clicou
+    setCheckIns(prev => [...prev, checkIn])
 
-    const updatedStudent: Student = {
-      ...student,
-      photo: student.photo || '/images/fju-badge.jpg',
-      attendanceHistory: [
-        ...(student.attendanceHistory || []),
-        {
-          id: checkIn.id,
-          studentId: student.id,
-          classId: checkIn.classId,
-          className: checkIn.className,
-          checkInTime: checkIn.checkInTime,
-          date: today,
-        },
-      ],
-      totalClasses: (student.totalClasses || 0) + 1,
-      updatedAt: now.toISOString(),
+    try {
+      await fetch('/api/checkins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(checkIn),
+      })
+      
+      const updatedStudent: Student = {
+        ...student,
+        totalClasses: (student.totalClasses || 0) + 1,
+        updatedAt: now.toISOString(),
+      }
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStudent),
+      })
+
+      await loadAll()
+      setFilteredStudents([])
+      setSearchQuery('')
+      toast.success(`Check-in realizado - ${student.firstName}`)
+    } catch (err) {
+      loadAll()
     }
-
-    await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedStudent),
-    })
-
-    await loadAll()
-    setFilteredStudents([])
-    setSearchQuery('')
-
-    toast.success(`${t.checkInSuccess} - ${student.firstName} ${student.lastName}`)
   }
 
   const handleEnrollmentComplete = async () => {
-    await loadStudents()
+    await loadAll()
     setActiveTab('CHECK-IN')
-    toast.success(t.enrollmentSuccess)
+    toast.success('Matrícula salva!')
   }
 
-  const visibleStudents = Array.from(
-    new Map(
-      (filteredStudents.length > 0 ? filteredStudents : students).map(s => [s.id, s])
-    ).values()
-  )
+  const visibleStudents = filteredStudents.length > 0 ? filteredStudents : students
 
   const renderContent = () => {
     if (showStudentsList) {
-      return (
-        <StudentsList
-          onBack={() => setShowStudentsList(false)}
-          onCheckIn={handleCheckIn}
+      return <StudentsList onBack={() => setShowStudentsList(false)} onCheckIn={handleCheckIn} />
+    }
+    if (activeTab === 'MATRÍCULA') {
+      return <EnrollmentForm onComplete={handleEnrollmentComplete} onCancel={() => setActiveTab('CHECK-IN')} />
+    }
+    if (activeTab === 'ALUNOS') {
+      return <StudentsList onBack={() => setActiveTab('CHECK-IN')} onCheckIn={handleCheckIn} />
+    }
+    if (activeTab === 'ADMIN') {
+      return <AdminPanel />
+    }
+    return (
+      <>
+        <SearchSection 
+          searchQuery={searchQuery} 
+          onSearchChange={(value) => {
+            setSearchQuery(value)
+            if (!value.trim()) setFilteredStudents([])
+          }}
+          onSearch={handleSearch}
         />
-      )
-    }
-
-    switch (activeTab) {
-      case 'MATRÍCULA':
-        return (
-          <EnrollmentForm
-            onComplete={handleEnrollmentComplete}
-            onCancel={() => setActiveTab('CHECK-IN')}
-          />
-        )
-
-      case 'ALUNOS':
-        return (
-          <StudentsList
-            onBack={() => setActiveTab('CHECK-IN')}
-            onCheckIn={handleCheckIn}
-          />
-        )
-
-      case 'ADMIN':
-        return <AdminPanel />
-
-      default:
-        return (
-          <>
-            <SearchSection
-              searchQuery={searchQuery}
-              onSearchChange={(value) => {
-                setSearchQuery(value)
-                if (!value.trim()) setFilteredStudents([])
-              }}
-              onSearch={handleSearch}
-            />
-
-            <RecentArrivals
-              students={visibleStudents}
-              checkIns={checkIns}
-              onCheckIn={handleCheckIn}
-              onViewAll={() => setShowStudentsList(true)}
-            />
-
-            <InfoBar />
-          </>
-        )
-    }
+        <RecentArrivals 
+          students={visibleStudents} 
+          checkIns={checkIns} 
+          onCheckIn={handleCheckIn} 
+          onViewAll={() => setShowStudentsList(true)} 
+        />
+        <InfoBar />
+      </>
+    )
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative">
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0">
-        <img src="/images/fju-badge.jpg" alt="" className="w-[600px]" />
-      </div>
-
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
-
       <main className="flex-1 flex flex-col relative z-10">
         {renderContent()}
       </main>
-
-      <div className="fixed bottom-4 right-4 pointer-events-none opacity-20 z-50">
-        <img src="/images/fju-logo.png" alt="" className="w-16" />
-      </div>
     </div>
   )
 }

@@ -9,15 +9,12 @@ import { EnrollmentForm } from '@/components/enrollment-form'
 import { AdminPanel } from '@/components/admin-panel'
 import { StudentsList } from '@/components/students-list'
 import { AppProvider, useApp } from '@/components/app-provider'
-import { 
-  Student, CheckIn,
-  getStudents, getTodayCheckIns, checkInStudent, searchStudents, initializeDemoData 
-} from '@/lib/database'
-import { toast } from 'sonner'
-import { Toaster } from 'sonner'
+import type { Student, CheckIn } from '@/lib/database'
+import { toast, Toaster } from 'sonner'
 
 function KioskApp() {
-  const { t, isAdmin } = useApp()
+  const { t } = useApp()
+
   const [activeTab, setActiveTab] = useState('CHECK-IN')
   const [searchQuery, setSearchQuery] = useState('')
   const [students, setStudents] = useState<Student[]>([])
@@ -25,53 +22,142 @@ function KioskApp() {
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
   const [showStudentsList, setShowStudentsList] = useState(false)
 
-  // Load data
-  useEffect(() => {
-    initializeDemoData() // Initialize demo data if no students exist
-    setStudents(getStudents())
-    setCheckIns(getTodayCheckIns())
-  }, [])
+  const loadStudents = async () => {
+    try {
+      const res = await fetch('/api/students')
+      const data = await res.json()
+      setStudents(Array.isArray(data) ? data : [])
+    } catch {
+      setStudents([])
+    }
+  }
 
-  // Refresh check-ins periodically
+  const loadCheckIns = async () => {
+    try {
+      const res = await fetch('/api/checkins')
+      const data = await res.json()
+
+      const valid = Array.isArray(data)
+        ? data.filter(c => c.checkInTime && !isNaN(new Date(c.checkInTime).getTime()))
+        : []
+
+      setCheckIns(valid)
+    } catch {
+      setCheckIns([])
+    }
+  }
+
+  const loadAll = async () => {
+    await loadStudents()
+    await loadCheckIns()
+  }
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCheckIns(getTodayCheckIns())
-    }, 5000)
+    loadAll()
+    const interval = setInterval(loadAll, 15000)
     return () => clearInterval(interval)
   }, [])
 
   const handleSearch = () => {
-    if (searchQuery.trim()) {
-      const results = searchStudents(searchQuery)
-      setFilteredStudents(results)
-    } else {
+    const q = searchQuery.toLowerCase().trim()
+
+    if (!q) {
       setFilteredStudents([])
+      return
     }
+
+    const results = students.filter(s =>
+      s.firstName?.toLowerCase().includes(q) ||
+      s.lastName?.toLowerCase().includes(q) ||
+      s.email?.toLowerCase().includes(q) ||
+      s.id?.toLowerCase().includes(q)
+    )
+
+    setFilteredStudents(results)
   }
 
-  const handleCheckIn = (student: Student) => {
-    const result = checkInStudent(student.id)
-    if (result) {
-      setCheckIns(getTodayCheckIns())
-      toast.success(`${t.checkInSuccess} - ${student.firstName} ${student.lastName}`)
+  const handleCheckIn = async (student: Student) => {
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+
+    const alreadyChecked = checkIns.some(c =>
+      c.studentId === student.id &&
+      c.checkInTime?.startsWith(today)
+    )
+
+    if (alreadyChecked) {
+      toast.warning('Este aluno já fez check-in hoje.')
+      return
     }
+
+    const checkIn: CheckIn = {
+      id: `${student.id}-${Date.now()}`,
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      studentPhoto: student.photo || '/images/fju-badge.jpg',
+      beltRank: student.beltRank || 'white',
+      stripes: student.stripes || 0,
+      membershipType: student.membershipType || 'monthly',
+      classId: 'open-mat',
+      className: 'Open Mat',
+      checkInTime: now.toISOString(),
+    }
+
+    await fetch('/api/checkins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(checkIn),
+    })
+
+    const updatedStudent: Student = {
+      ...student,
+      photo: student.photo || '/images/fju-badge.jpg',
+      attendanceHistory: [
+        ...(student.attendanceHistory || []),
+        {
+          id: checkIn.id,
+          studentId: student.id,
+          classId: checkIn.classId,
+          className: checkIn.className,
+          checkInTime: checkIn.checkInTime,
+          date: today,
+        },
+      ],
+      totalClasses: (student.totalClasses || 0) + 1,
+      updatedAt: now.toISOString(),
+    }
+
+    await fetch('/api/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedStudent),
+    })
+
+    await loadAll()
+    setFilteredStudents([])
+    setSearchQuery('')
+
+    toast.success(`${t.checkInSuccess} - ${student.firstName} ${student.lastName}`)
   }
 
-  const handleEnrollmentComplete = (student: Student) => {
-    setStudents(getStudents())
+  const handleEnrollmentComplete = async () => {
+    await loadStudents()
     setActiveTab('CHECK-IN')
     toast.success(t.enrollmentSuccess)
   }
 
+  const visibleStudents = Array.from(
+    new Map(
+      (filteredStudents.length > 0 ? filteredStudents : students).map(s => [s.id, s])
+    ).values()
+  )
+
   const renderContent = () => {
-    // Show students list view
     if (showStudentsList) {
       return (
         <StudentsList
           onBack={() => setShowStudentsList(false)}
-          onCheckIn={(student) => {
-            handleCheckIn(student)
-          }}
+          onCheckIn={handleCheckIn}
         />
       )
     }
@@ -84,6 +170,7 @@ function KioskApp() {
             onCancel={() => setActiveTab('CHECK-IN')}
           />
         )
+
       case 'ALUNOS':
         return (
           <StudentsList
@@ -91,8 +178,10 @@ function KioskApp() {
             onCheckIn={handleCheckIn}
           />
         )
+
       case 'ADMIN':
         return <AdminPanel />
+
       default:
         return (
           <>
@@ -100,20 +189,18 @@ function KioskApp() {
               searchQuery={searchQuery}
               onSearchChange={(value) => {
                 setSearchQuery(value)
-                if (!value.trim()) {
-                  setFilteredStudents([])
-                }
+                if (!value.trim()) setFilteredStudents([])
               }}
               onSearch={handleSearch}
             />
-            
+
             <RecentArrivals
-              students={filteredStudents.length > 0 ? filteredStudents : students}
+              students={visibleStudents}
               checkIns={checkIns}
               onCheckIn={handleCheckIn}
               onViewAll={() => setShowStudentsList(true)}
             />
-            
+
             <InfoBar />
           </>
         )
@@ -122,18 +209,16 @@ function KioskApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background relative">
-      {/* Global FJU Watermark */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0">
         <img src="/images/fju-badge.jpg" alt="" className="w-[600px]" />
       </div>
 
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       <main className="flex-1 flex flex-col relative z-10">
         {renderContent()}
       </main>
 
-      {/* FJU Logo Watermark in Corner */}
       <div className="fixed bottom-4 right-4 pointer-events-none opacity-20 z-50">
         <img src="/images/fju-logo.png" alt="" className="w-16" />
       </div>

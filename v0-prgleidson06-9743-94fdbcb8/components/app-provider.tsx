@@ -60,7 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AppContext.Provider value={{ language, setLanguage, t, isAdmin, login, logout }}>
+    <AppContext.Provider value={{ language, setLanguage, t: t as any, isAdmin, login, logout }}>
       {children}
     </AppContext.Provider>
   )

@@ -1,12 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  images: {
-    unoptimized: true,
-  },
-  allowedDevOrigins: ['192.168.1.136'],
+  allowedDevOrigins: ['192.168.1.141'],
 }
 
 export default nextConfig

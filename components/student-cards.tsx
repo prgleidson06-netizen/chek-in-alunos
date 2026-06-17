@@ -178,9 +178,13 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
   
   // Get IDs of students who already checked in today
   const checkedInIds = new Set(checkIns.map(c => c.studentId))
-  const uniqueCheckIns = Array.from(
+ 
+const validCheckIns = checkIns.filter(c => 
+  c.checkInTime && !isNaN(new Date(c.checkInTime).getTime())
+)
+const uniqueCheckIns = Array.from(
   new Map(
-    checkIns.map(c => [
+    validCheckIns.map(c => [
       `${c.studentId}-${new Date(c.checkInTime).toISOString().split('T')[0]}`,
       c
     ])
