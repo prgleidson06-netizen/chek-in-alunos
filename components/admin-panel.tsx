@@ -3,28 +3,23 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useApp } from '@/components/app-provider'
-import type { Student, GymClass, AdminSettings } from '@/lib/database'
-import { getClasses, getSettings, saveClass, saveSettings, deleteClass, generateId } from '@/lib/database'
-import { Users, Calendar, Settings, BarChart3, Plus, Save } from 'lucide-react'
-
-type AdminTab = 'students' | 'classes' | 'settings' | 'reports'
+import type { Student, GymClass } from '@/lib/database'
+import { generateId } from '@/lib/database'
+import { Users, Calendar, Plus, Trash2, Edit2, ImageIcon } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function AdminPanel() {
-  const { t, isAdmin } = useApp()
-  const [activeTab, setActiveTab] = useState<AdminTab>('students')
+  const { isAdmin } = useApp()
+  const [activeTab, setActiveTab] = useState<'students' | 'classes'>('students')
   const [students, setStudents] = useState<Student[]>([])
   const [classes, setClasses] = useState<GymClass[]>([])
-  const [settings, setSettingsState] = useState<AdminSettings>(getSettings())
   const [searchQuery, setSearchQuery] = useState('')
-
-  const tt = (key: string, fallback: string) => ((t as any)[key] as string) || fallback
 
   const loadStudents = async () => {
     try {
-      const res = await fetch('/api/students')
+      const res = await fetch('/api/students', { cache: 'no-store' })
       const data = await res.json()
       setStudents(Array.isArray(data) ? data : [])
     } catch {
@@ -32,103 +27,146 @@ export function AdminPanel() {
     }
   }
 
-  const refreshData = async () => {
-    await loadStudents()
-    setClasses(getClasses())
-    setSettingsState(getSettings())
+  const loadClasses = () => {
+    try {
+      const savedClasses = localStorage.getItem('fju_classes')
+      if (savedClasses) {
+        setClasses(JSON.parse(savedClasses))
+      } else {
+        const defaultClasses = [
+          { id: '1', name: 'Jiujitsu - Adulto', instructor: 'Pr. Gleidson', startTime: '19:00', endTime: '20:30', maxCapacity: 30, dayOfWeek: 1 },
+          { id: '2', name: 'Jiujitsu - Infantil', instructor: 'Aux. Ivan', startTime: '17:30', endTime: '18:30', maxCapacity: 20, dayOfWeek: 1 },
+          { id: '3', name: 'Open Mat', instructor: 'Gleidson De Oliveira', startTime: '10:00', endTime: '12:00', maxCapacity: 50, dayOfWeek: 6 }
+        ]
+        localStorage.setItem('fju_classes', JSON.stringify(defaultClasses))
+        setClasses(defaultClasses)
+      }
+    } catch {
+      toast.error('Erro ao carregar as aulas.')
+    }
   }
 
   useEffect(() => {
-    refreshData()
+    loadStudents()
+    loadClasses()
   }, [])
 
-  const safePhoto = (photo?: string) => {
-    if (!photo) return '/images/fju-badge.jpg'
-    if (photo.startsWith('data:image') && photo.length > 250000) return '/images/fju-badge.jpg'
-    return photo
+  // FUNÇÃO: DELETAR ALUNO
+  const handleDeleteStudent = async (id: string, name: string) => {
+    const confirmDelete = window.confirm(`Deseja realmente deletar o aluno ${name}? Essa ação é permanente.`)
+    if (!confirmDelete) return
+
+    try {
+      setStudents(prev => prev.filter(s => s.id !== id))
+      await fetch('/api/students', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      toast.success(`Aluno ${name} removido com sucesso!`)
+    } catch {
+      toast.error('Erro ao deletar o aluno no servidor.')
+      loadStudents()
+    }
   }
 
-  const handleAddStudent = async () => {
-    const firstName = prompt('First name / Nome')
-    if (!firstName) return
+  // FUNÇÃO: EDITAR DADOS DO ALUNO
+  const handleEditStudent = async (student: Student) => {
+    const newFirstName = prompt('Editar Primeiro Nome:', student.firstName)
+    if (newFirstName === null) return 
+    
+    const newLastName = prompt('Editar Sobrenome:', student.lastName)
+    if (newLastName === null) return
 
-    const lastName = prompt('Last name / Sobrenome') || ''
-    const email = prompt('Email') || ''
-    const phone = prompt('Phone / Telefone') || ''
-    const now = new Date().toISOString()
+    const newBelt = prompt('Editar Faixa (white, blue, purple, brown, black):', student.beltRank)
+    if (newBelt === null) return
 
-    const newStudent: Student = {
-      id: generateId(),
-      firstName,
-      lastName,
-      email,
-      phone,
-      dateOfBirth: '',
-      photo: '/images/fju-badge.jpg',
-      beltRank: 'white',
-      stripes: 0,
-      membershipType: 'monthly',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: '',
-      guardianName: '',
-      guardianPhone: '',
-      guardianRelationship: '',
-      emergencyName: '',
-      emergencyPhone: '',
-      emergencyRelationship: '',
-      medicalConditions: '',
-      allergies: '',
-      medications: '',
-      waiverAgreed: false,
-      waiverSignature: '',
-      waiverSignedAt: '',
-      startDate: now.split('T')[0],
-      createdAt: now,
-      updatedAt: now,
-      totalClasses: 0,
-      attendanceHistory: [],
+    const updatedStudent: Student = {
+      ...student,
+      firstName: newFirstName.trim() || student.firstName,
+      lastName: newLastName.trim() || student.lastName,
+      // O "as any" remove o bloqueio do TypeScript garantindo que aceite a edição
+      beltRank: (newBelt.trim().toLowerCase() || student.beltRank) as any
     }
 
-    await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newStudent),
-    })
+    try {
+      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
 
-    await refreshData()
-    alert('Student saved successfully!')
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStudent),
+      })
+      toast.success('Cadastro do aluno atualizado!')
+    } catch {
+      toast.error('Erro ao salvar edições do aluno.')
+      loadStudents()
+    }
   }
 
-  const handleSaveSettings = () => {
-    saveSettings(settings)
-    alert('Settings saved!')
+  // 🔥 NOVA FUNÇÃO EXCLUSIVA: EDITAR FOTO DO ALUNO
+  const handleEditPhoto = async (student: Student) => {
+    const currentPhoto = student.photo || '/images/fju-badge.jpg'
+    const newPhotoUrl = prompt('Cole o link (URL) da nova foto do aluno:', currentPhoto)
+    
+    if (newPhotoUrl === null || newPhotoUrl.trim() === '' || newPhotoUrl === currentPhoto) {
+      return // Cancelou ou não mudou nada
+    }
+
+    const updatedStudent: Student = {
+      ...student,
+      photo: newPhotoUrl.trim(),
+      updatedAt: new Date().toISOString()
+    }
+
+    try {
+      // Atualiza na tela na hora
+      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
+
+      // Salva no banco local do Mac
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStudent),
+      })
+      toast.success(`Foto de ${student.firstName} atualizada!`)
+    } catch {
+      toast.error('Erro ao salvar a nova foto.')
+      loadStudents() // Recarrega do banco em caso de erro
+    }
   }
 
+  // FUNÇÃO: ADICIONAR AULA
   const handleAddClass = () => {
-    const name = prompt('Class name / Nome da aula')
+    const name = prompt('Nome da Aula (ex: No-Gi, Kids, Avançado):')
     if (!name) return
+    const instructor = prompt('Nome do Professor / Instrutor:') || 'Instrutor FJU'
+    const startTime = prompt('Horário de Início (ex: 19:00):') || '19:00'
+    const endTime = prompt('Horário de Término (ex: 20:30):') || '20:30'
 
     const newClass: GymClass = {
       id: generateId(),
       name,
-      instructor: '',
-      dayOfWeek: 1,
-      startTime: '09:00',
-      endTime: '10:00',
+      instructor,
+      startTime,
+      endTime,
       maxCapacity: 30,
+      dayOfWeek: 1
     }
 
-    saveClass(newClass)
-    refreshData()
+    const updatedClasses = [...classes, newClass]
+    setClasses(updatedClasses)
+    localStorage.setItem('fju_classes', JSON.stringify(updatedClasses))
+    toast.success('Nova aula adicionada!')
   }
 
+  // FUNÇÃO: DELETAR AULA
   const handleDeleteClass = (id: string) => {
-    if (!confirm('Delete this class?')) return
-    deleteClass(id)
-    refreshData()
+    if (!confirm('Deseja remover este horário de aula da grade?')) return
+    const updatedClasses = classes.filter(c => c.id !== id)
+    setClasses(updatedClasses)
+    localStorage.setItem('fju_classes', JSON.stringify(updatedClasses))
+    toast.success('Horário de aula removido.')
   }
 
   const filteredStudents = students.filter((s) => {
@@ -136,84 +174,126 @@ export function AdminPanel() {
     return (
       s.firstName?.toLowerCase().includes(q) ||
       s.lastName?.toLowerCase().includes(q) ||
-      s.email?.toLowerCase().includes(q)
+      s.email?.toLowerCase().includes(q) ||
+      s.id?.toLowerCase().includes(q)
     )
   })
 
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">{tt('accessDenied', 'Access denied. Please login as admin.')}</p>
+        <p className="text-muted-foreground">Acesso negado. Por favor, faça login como Administrador.</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 space-y-6">
-      <div className="flex items-center gap-3">
-        <img src="/images/fju-badge.jpg" alt="FJU" className="h-12 rounded-full" />
+    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 text-white relative z-10">
+      <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
+        <img src="/images/fju-badge.jpg" alt="FJU" className="h-12 w-12 rounded-full object-cover" />
         <div>
-          <h1 className="text-2xl font-bold">{tt('adminPanel', 'Admin Panel')}</h1>
-          <p className="text-muted-foreground text-sm">FJU BJJ Academy</p>
+          <h1 className="text-2xl font-bold tracking-tight">Painel de Controle</h1>
+          <p className="text-zinc-400 text-xs uppercase tracking-widest">FJU BJJ Academy</p>
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <Button onClick={() => setActiveTab('students')} variant={activeTab === 'students' ? 'default' : 'outline'}>
-          <Users className="w-4 h-4 mr-2" />
-          {tt('manageStudents', 'Students')}
+      <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-xl border border-zinc-800 w-fit">
+        <Button 
+          onClick={() => setActiveTab('students')} 
+          variant={activeTab === 'students' ? 'default' : 'ghost'}
+          className={activeTab === 'students' ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-zinc-400'}
+        >
+          <Users className="w-4 h-4 mr-2" /> Gerenciar Alunos
         </Button>
-        <Button onClick={() => setActiveTab('classes')} variant={activeTab === 'classes' ? 'default' : 'outline'}>
-          <Calendar className="w-4 h-4 mr-2" />
-          {tt('manageClasses', 'Classes')}
-        </Button>
-        <Button onClick={() => setActiveTab('settings')} variant={activeTab === 'settings' ? 'default' : 'outline'}>
-          <Settings className="w-4 h-4 mr-2" />
-          {tt('settings', 'Settings')}
-        </Button>
-        <Button onClick={() => setActiveTab('reports')} variant={activeTab === 'reports' ? 'default' : 'outline'}>
-          <BarChart3 className="w-4 h-4 mr-2" />
-          {tt('reports', 'Reports')}
+        <Button 
+          onClick={() => setActiveTab('classes')} 
+          variant={activeTab === 'classes' ? 'default' : 'ghost'}
+          className={activeTab === 'classes' ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-zinc-400'}
+        >
+          <Calendar className="w-4 h-4 mr-2" /> Gerenciar Aulas
         </Button>
       </div>
 
       {activeTab === 'students' && (
-        <Card>
+        <Card className="bg-zinc-900/40 border-zinc-800 backdrop-blur-md">
           <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle>{tt('students', 'Students')}</CardTitle>
-              <Button onClick={handleAddStudent}>
-                <Plus className="w-4 h-4 mr-2" />
-                {tt('addStudent', 'Add Student')}
-              </Button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <CardTitle className="text-xl text-zinc-100">Alunos Registrados</CardTitle>
+              <Input 
+                placeholder="🔎 Pesquisar por nome, e-mail ou ID..." 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-zinc-950 border-zinc-800 focus-visible:ring-red-600 max-w-sm text-white"
+              />
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Input
-              placeholder={tt('searchPlaceholder', 'Search students...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <CardContent>
+            <div className="space-y-3">
+              {filteredStudents.map((student) => {
+                // Define a foto: Usa a foto do aluno OU o brasão da FJU por padrão
+                const studentPhoto = student.photo || '/images/fju-badge.jpg'
 
-            <div className="space-y-2">
-              {filteredStudents.map((student) => (
-                <div key={student.id} className="flex items-center justify-between border rounded-lg p-3">
-                  <div className="flex items-center gap-3">
-                    <img src={safePhoto(student.photo)} alt="" className="w-10 h-10 rounded-full object-cover bg-secondary" />
-                    <div>
-                      <p className="font-medium">{student.firstName} {student.lastName}</p>
-                      <p className="text-xs text-muted-foreground">{student.email || student.phone || student.id}</p>
+                return (
+                  <div key={student.id} className="flex items-center justify-between border border-zinc-800/80 bg-zinc-950/40 rounded-xl p-4 hover:border-zinc-700 transition group">
+                    <div className="flex items-center gap-4">
+                      {/* 📸 FOTO DO ALUNO NO ADMIN (RESTAURADA) */}
+                      <img 
+                        src={studentPhoto} 
+                        alt={`${student.firstName} ${student.lastName}`} 
+                        className="w-12 h-12 rounded-full object-cover border border-zinc-700 flex-shrink-0"
+                        onError={(e) => {
+                          // Se a foto der erro, carrega o badge da FJU
+                          (e.target as HTMLImageElement).src = '/images/fju-badge.jpg'
+                        }}
+                      />
+                      <div>
+                        <p className="font-semibold text-zinc-200">{student.firstName} {student.lastName}</p>
+                        <p className="text-xs text-zinc-500">{student.email || 'Sem e-mail cadastrado'}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <div className="text-right hidden sm:block text-sm mr-4">
+                        <p className="capitalize text-zinc-300 font-medium">🥋 {student.beltRank}</p>
+                        <p className="text-xs text-zinc-500">{student.totalClasses || 0} aulas</p>
+                      </div>
+                      
+                      {/* 🖼️ BOTÃO DE EDITAR FOTO (NOVO) */}
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEditPhoto(student)}
+                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-emerald-400 h-9 w-9 rounded-xl transition"
+                        title="Editar Foto do Aluno"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                      </Button>
+
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEditStudent(student)}
+                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-100 h-9 w-9 rounded-xl transition"
+                        title="Editar Dados do Aluno"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+
+                      <Button 
+                        variant="destructive" 
+                        size="icon" 
+                        onClick={() => handleDeleteStudent(student.id, `${student.firstName} ${student.lastName}`)}
+                        className="bg-zinc-900/80 hover:bg-red-950 border border-zinc-800 hover:border-red-900 text-zinc-400 hover:text-red-400 h-9 w-9 rounded-xl transition"
+                        title="Deletar Aluno"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <p>{tt(student.beltRank || 'white', student.beltRank || 'white')}</p>
-                    <p className="text-muted-foreground">{student.totalClasses || 0} classes</p>
-                  </div>
-                </div>
-              ))}
-
+                )
+              })}
               {filteredStudents.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">{tt('noStudentsFound', 'No students found.')}</p>
+                <p className="text-center text-zinc-500 py-8 text-sm relative z-10">Nenhum aluno encontrado.</p>
               )}
             </div>
           </CardContent>
@@ -221,77 +301,50 @@ export function AdminPanel() {
       )}
 
       {activeTab === 'classes' && (
-        <Card>
+        <Card className="bg-zinc-900/40 border-zinc-800 backdrop-blur-md relative z-10">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>{tt('manageClasses', 'Classes')}</CardTitle>
-              <Button onClick={handleAddClass}>
-                <Plus className="w-4 h-4 mr-2" />
-                {tt('addClass', 'Add Class')}
+              <CardTitle className="text-xl text-zinc-100">Grade de Horários</CardTitle>
+              <Button onClick={handleAddClass} className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl px-4 shadow-lg">
+                <Plus className="w-4 h-4 mr-2" /> Adicionar Aula
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {classes.map((gymClass) => (
-              <div key={gymClass.id} className="border rounded-lg p-3 flex justify-between">
-                <div>
-                  <p className="font-medium">{gymClass.name}</p>
-                  <p className="text-sm text-muted-foreground">{gymClass.startTime} - {gymClass.endTime}</p>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {classes.map((gymClass) => (
+                <div key={gymClass.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 flex flex-col justify-between hover:border-zinc-700 transition shadow-md">
+                  <div>
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-bold text-zinc-100 text-base">{gymClass.name}</h3>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteClass(gymClass.id)}
+                        className="text-zinc-500 hover:text-red-400 hover:bg-transparent transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-red-400 font-medium flex items-center gap-1.5 mb-1">
+                      🕒 {gymClass.startTime}h - {gymClass.endTime}h
+                    </p>
+                    <p className="text-xs text-zinc-400">
+                      Professor: <span className="text-zinc-300 font-semibold">{gymClass.instructor || 'A definir'}</span>
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-zinc-900 text-[11px] text-zinc-500 flex justify-between">
+                    <span>Status: <strong className="text-emerald-500">Ativa</strong></span>
+                    <span>Capacidade: {gymClass.maxCapacity || 30} alunos</span>
+                  </div>
                 </div>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteClass(gymClass.id)}>
-                  Delete
-                </Button>
-              </div>
-            ))}
+              ))}
+              {classes.length === 0 && (
+                <p className="text-center text-zinc-500 col-span-full py-8 text-sm relative z-10">Nenhuma aula cadastrada na grade.</p>
+              )}
+            </div>
           </CardContent>
         </Card>
-      )}
-
-      {activeTab === 'settings' && (
-        <Card className="max-w-xl">
-          <CardHeader>
-            <CardTitle>{tt('settings', 'Settings')}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>{tt('gymName', 'Gym Name')}</Label>
-              <Input value={settings.gymName} onChange={(e) => setSettingsState({ ...settings, gymName: e.target.value })} />
-            </div>
-            <div>
-              <Label>{tt('maxCapacity', 'Max Capacity')}</Label>
-              <Input
-                type="number"
-                value={settings.gymCapacity}
-                onChange={(e) => setSettingsState({ ...settings, gymCapacity: Number(e.target.value) || 0 })}
-              />
-            </div>
-            <Button onClick={handleSaveSettings}>
-              <Save className="w-4 h-4 mr-2" />
-              {tt('save', 'Save')}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === 'reports' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader><CardTitle>{tt('students', 'Students')}</CardTitle></CardHeader>
-            <CardContent><p className="text-4xl font-bold text-primary">{students.length}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle>{tt('manageClasses', 'Classes')}</CardTitle></CardHeader>
-            <CardContent><p className="text-4xl font-bold text-primary">{classes.length}</p></CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle>{tt('totalClasses', 'Total Classes')}</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-4xl font-bold text-primary">
-                {students.reduce((sum, s) => sum + (s.totalClasses || 0), 0)}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   )

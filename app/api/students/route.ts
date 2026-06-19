@@ -2,86 +2,68 @@ import { NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
 
+export const dynamic = 'force-dynamic'
+
 const dataDir = path.join(process.cwd(), 'data')
 const filePath = path.join(dataDir, 'students.json')
 
-// Função auxiliar para ler os estudantes de forma segura
-async function readStudents(): Promise<any[]> {
+async function readStudents() {
   try {
     const data = await fs.readFile(filePath, 'utf8')
-    return JSON.parse(data)
+    const parsed = JSON.parse(data)
+    return Array.isArray(parsed) ? parsed : []
   } catch {
-    // Se a pasta ou arquivo não existirem, cria a estrutura do zero
     await fs.mkdir(dataDir, { recursive: true })
-    await fs.writeFile(filePath, '[]', 'utf8')
+    await fs.writeFile(filePath, '[]')
     return []
   }
 }
 
 export async function GET() {
-  try {
-    const students = await readStudents()
-    
-    // Opcional: Retorna os alunos em ordem alfabética por padrão
-    const sortedStudents = students.sort((a, b) => 
-      (a.firstName || '').localeCompare(b.firstName || '')
-    )
-    
-    return NextResponse.json(sortedStudents)
-  } catch (error) {
-    return NextResponse.json({ error: 'Erro ao buscar estudantes' }, { status: 500 })
-  }
+  const students = await readStudents()
+  return NextResponse.json(students)
 }
 
 export async function POST(request: Request) {
   try {
     const student = await request.json()
-
-    // Validação básica para evitar cadastros vazios acidentais
-    if (!student.firstName || !student.lastName) {
-      return NextResponse.json({ error: 'Nome e sobrenome são obrigatórios' }, { status: 400 })
-    }
-
+    // Lê todos os alunos existentes primeiro para NÃO perder ninguém
     const students = await readStudents()
 
-    // Função para gerar uma chave única baseada nos dados do aluno (evita duplicações por dados idênticos)
-    const generateDataKey = (s: any) =>
-      `${s.firstName}-${s.lastName}-${s.phone || s.email || ''}`.toLowerCase().trim()
-
-    const targetKey = generateDataKey(student)
-
-    // Procura se o aluno já existe: seja pelo ID único OU pelos dados idênticos (Nome + Sobrenome + Contato)
-    const index = students.findIndex((s: any) => 
-      s.id === student.id || generateDataKey(s) === targetKey
-    )
-
-    const now = new Date().toISOString()
-
-    if (index >= 0) {
-      // 1. Atualização de Aluno Existente
-      students[index] = { 
-        ...students[index], 
-        ...student, 
-        updatedAt: now 
-      }
+    const index = students.findIndex((s: any) => s.id === student.id)
+    if (index !== -1) {
+      // Se o aluno já existe, atualiza mantendo os dados antigos que não foram mexidos
+      students[index] = { ...students[index], ...student, updatedAt: new Date().toISOString() }
     } else {
-      // 2. Cadastro de Novo Aluno
+      // Se for aluno novo, adiciona na lista existente
       students.push({
         ...student,
-        // ID ultra seguro combinando timestamp e string aleatória
-        id: student.id || `std_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        createdAt: student.createdAt || now,
-        updatedAt: now,
+        id: student.id || Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
     }
 
-    // Salva o arquivo de forma assíncrona
+    // Salva a lista COMPLETA de volta no arquivo
     await fs.mkdir(dataDir, { recursive: true })
-    await fs.writeFile(filePath, JSON.stringify(students, null, 2), 'utf8')
-
+    await fs.writeFile(filePath, JSON.stringify(students, null, 2))
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Erro no endpoint de estudantes:', error)
-    return NextResponse.json({ error: 'Erro interno ao salvar estudante' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ success: false }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { id } = await request.json()
+    let students = await readStudents()
+
+    students = students.filter((s: any) => s.id !== id)
+
+    await fs.mkdir(dataDir, { recursive: true })
+    await fs.writeFile(filePath, JSON.stringify(students, null, 2))
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ success: false }, { status: 500 })
   }
 }
