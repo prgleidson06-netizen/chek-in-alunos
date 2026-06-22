@@ -113,7 +113,7 @@
   {
     "id": "ghqka6koxy6mqkz71ft",
     "firstName": "Gleidson",
-    "lastName": "Peixoto",
+    "lastName": "De Oliveira",
     "dateOfBirth": "1979-05-29",
     "email": "pr_gleidson@hotmail.com",
     "phone": "2134327693",
@@ -142,21 +142,7 @@
     "totalClasses": 1,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T13:39:49.436Z",
-    "updatedAt": "2026-06-22T18:57:55.025Z",
-    "karate": {
-      "beltRank": "white",
-      "kyu": 1,
-      "classes": 0
-    },
-    "programs": {
-      "bjj": true,
-      "karate": false
-    },
-    "bjj": {
-      "beltRank": "black",
-      "stripes": 0,
-      "classes": 1
-    }
+    "updatedAt": "2026-06-21T16:09:49.286Z"
   },
   {
     "id": "p3na6wdhdfmqkzfm84",
@@ -394,21 +380,7 @@
     "totalClasses": 2,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T19:14:33.807Z",
-    "updatedAt": "2026-06-22T18:59:36.964Z",
-    "programs": {
-      "bjj": true,
-      "karate": false
-    },
-    "bjj": {
-      "beltRank": "white",
-      "stripes": 0,
-      "classes": 2
-    },
-    "karate": {
-      "beltRank": "white",
-      "kyu": 10,
-      "classes": 0
-    }
+    "updatedAt": "2026-06-22T18:43:58.109Z"
   },
   {
     "id": "b0yacam9o8mqlcqg7e",
