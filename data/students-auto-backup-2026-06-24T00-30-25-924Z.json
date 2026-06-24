@@ -28,7 +28,7 @@
     "waiverAgreed": true,
     "startDate": "2026-06-12",
     "waiverSignedAt": "2026-06-12T00:02:24.769Z",
-    "totalClasses": 8,
+    "totalClasses": 7,
     "attendanceHistory": [
       {
         "id": "stwgthxvvz8mqa5wvpd-1781222553361",
@@ -40,7 +40,7 @@
       }
     ],
     "createdAt": "2026-06-12T00:02:24.769Z",
-    "updatedAt": "2026-06-24T15:50:58.063Z"
+    "updatedAt": "2026-06-24T00:30:18.841Z"
   },
   {
     "id": "oqus5ziciysmqa66y4g",
@@ -71,10 +71,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-12",
     "waiverSignedAt": "2026-06-12T00:10:14.464Z",
-    "totalClasses": 9,
+    "totalClasses": 8,
     "attendanceHistory": [],
     "createdAt": "2026-06-12T00:10:14.464Z",
-    "updatedAt": "2026-06-24T15:56:33.330Z",
+    "updatedAt": "2026-06-24T00:30:20.477Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -119,10 +119,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-12",
     "waiverSignedAt": "2026-06-12T00:15:40.204Z",
-    "totalClasses": 4,
+    "totalClasses": 3,
     "attendanceHistory": [],
     "createdAt": "2026-06-12T00:15:40.204Z",
-    "updatedAt": "2026-06-24T15:55:30.013Z"
+    "updatedAt": "2026-06-24T00:30:23.628Z"
   },
   {
     "id": "ghqka6koxy6mqkz71ft",
@@ -153,10 +153,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T13:39:49.385Z",
-    "totalClasses": 4,
+    "totalClasses": 3,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T13:39:49.436Z",
-    "updatedAt": "2026-06-24T15:35:42.834Z"
+    "updatedAt": "2026-06-24T00:30:21.641Z"
   },
   {
     "id": "p3na6wdhdfmqkzfm84",
@@ -187,10 +187,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T13:46:29.572Z",
-    "totalClasses": 9,
+    "totalClasses": 8,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T13:46:29.640Z",
-    "updatedAt": "2026-06-24T00:30:30.493Z",
+    "updatedAt": "2026-06-24T00:30:24.881Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -226,10 +226,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T13:52:22.869Z",
-    "totalClasses": 8,
+    "totalClasses": 7,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T13:52:22.919Z",
-    "updatedAt": "2026-06-24T00:30:26.164Z",
+    "updatedAt": "2026-06-23T15:39:27.805Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -274,10 +274,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T13:56:09.088Z",
-    "totalClasses": 9,
+    "totalClasses": 8,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T13:56:09.147Z",
-    "updatedAt": "2026-06-24T00:30:27.590Z",
+    "updatedAt": "2026-06-23T15:39:15.404Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -322,10 +322,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T16:26:52.417Z",
-    "totalClasses": 11,
+    "totalClasses": 10,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T16:26:52.466Z",
-    "updatedAt": "2026-06-24T00:30:28.193Z",
+    "updatedAt": "2026-06-23T15:39:02.017Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 4,
@@ -370,10 +370,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T16:31:08.095Z",
-    "totalClasses": 3,
+    "totalClasses": 2,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T16:31:08.249Z",
-    "updatedAt": "2026-06-24T00:30:32.796Z"
+    "updatedAt": "2026-06-23T14:35:17.230Z"
   },
   {
     "id": "pebp7nuaskmqlavacz",
@@ -404,10 +404,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T19:06:36.467Z",
-    "totalClasses": 5,
+    "totalClasses": 4,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T19:06:36.536Z",
-    "updatedAt": "2026-06-24T00:30:33.568Z",
+    "updatedAt": "2026-06-23T15:12:26.197Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -443,10 +443,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T19:14:33.729Z",
-    "totalClasses": 9,
+    "totalClasses": 8,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T19:14:33.807Z",
-    "updatedAt": "2026-06-24T00:30:34.352Z",
+    "updatedAt": "2026-06-23T20:13:30.870Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
@@ -482,10 +482,10 @@
     "waiverAgreed": true,
     "startDate": "2026-06-19",
     "waiverSignedAt": "2026-06-19T19:58:49.994Z",
-    "totalClasses": 6,
+    "totalClasses": 5,
     "attendanceHistory": [],
     "createdAt": "2026-06-19T19:58:50.075Z",
-    "updatedAt": "2026-06-24T00:30:35.101Z",
+    "updatedAt": "2026-06-23T15:17:58.298Z",
     "bjj": {
       "beltRank": "white",
       "stripes": 0,
