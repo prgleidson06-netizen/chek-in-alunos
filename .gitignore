@@ -2,3 +2,8 @@ node_modules
 .next
 .env*.local
 .DS_Store
+
+# Ignorar backups automáticos pesados
+data/*-backup-*.json
+data/*-auto-backup-*.json
+backups/
