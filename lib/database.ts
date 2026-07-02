@@ -1,4 +1,19 @@
 export interface Student {
+  programs?: {
+    bjj: boolean
+    karate: boolean
+  }
+  bjj?: {
+    beltRank: string
+    stripes: number
+    classes: number
+  }
+  karate?: {
+    beltRank: string
+    kyu: number
+    classes: number
+  }
+  programChoice?: string;
   id: string
   firstName: string
   lastName: string

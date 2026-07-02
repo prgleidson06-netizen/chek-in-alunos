@@ -25,13 +25,14 @@ interface EnrollmentFormProps {
   onCancel: () => void
 }
 
-type Step = 'personal' | 'emergency' | 'medical' | 'photo' | 'membership' | 'waiver'
+type Step = 'personal' | 'emergency' | 'medical' | 'photo' | 'program' | 'membership' | 'waiver'
 
 export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
   const { t } = useApp()
   const signatureRef = useRef<SignaturePadRef>(null)
   const [currentStep, setCurrentStep] = useState<Step>('personal')
   const [error, setError] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -54,6 +55,9 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     membershipType: 'monthly' as Student['membershipType'],
     beltRank: 'white' as Student['beltRank'],
     stripes: 0,
+    programChoice: 'bjj',
+    karateBeltRank: 'white',
+    karateKyu: 10,
     guardianName: '',
     guardianRelationship: '',
     guardianPhone: '',
@@ -61,7 +65,7 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     waiverAgreed: false,
   })
 
-  const steps: Step[] = ['personal', 'emergency', 'medical', 'photo', 'membership', 'waiver']
+  const steps: Step[] = ['personal', 'emergency', 'medical', 'photo', 'program', 'membership', 'waiver']
   const currentStepIndex = steps.indexOf(currentStep)
 
   const isMinor = () => {
@@ -132,12 +136,30 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return
     if (!validateStep()) return
+
+    setIsSubmitting(true)
+    setError('')
 
     const student: Student = {
       id: generateId(),
       ...formData,
+      programs: {
+        bjj: formData.programChoice === 'bjj' || formData.programChoice === 'both',
+        karate: formData.programChoice === 'karate' || formData.programChoice === 'both',
+      },
+      bjj: {
+        beltRank: formData.beltRank || 'white',
+        stripes: formData.stripes || 0,
+        classes: 0,
+      },
+      karate: {
+        beltRank: formData.karateBeltRank || 'white',
+        kyu: formData.karateKyu || 10,
+        classes: 0,
+      },
       startDate: new Date().toISOString().split('T')[0],
       waiverSignedAt: new Date().toISOString(),
       totalClasses: 0,
@@ -146,14 +168,26 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
       updatedAt: new Date().toISOString(),
     }
 
-    fetch('/api/students', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(student),
-})
-    onComplete(student)
+    try {
+      const res = await fetch('/api/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(student),
+      })
+
+      if (!res.ok) {
+        setError('Erro ao salvar matrícula. Tente novamente.')
+        return
+      }
+
+      onComplete(student)
+    } catch (err) {
+      setError('Erro de conexão ao salvar matrícula.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const stepTitles: Record<Step, string> = {
@@ -161,6 +195,7 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     emergency: t.emergencyContact,
     medical: t.medicalInfo,
     photo: t.studentPhoto,
+    program: 'Modalidade',
     membership: t.membershipType,
     waiver: t.waiverTitle,
   }
@@ -375,6 +410,72 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
             </div>
           )}
 
+          {/* Program Step */}
+          {currentStep === 'program' && (
+            <div className="space-y-4">
+              <div>
+                <Label>Modalidade *</Label>
+                <Select
+                  value={formData.programChoice}
+                  onValueChange={(value) => updateField('programChoice', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bjj">Jiu-Jitsu</SelectItem>
+                    <SelectItem value="karate">Karate</SelectItem>
+                    <SelectItem value="both">Jiu-Jitsu + Karate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(formData.programChoice === 'karate' || formData.programChoice === 'both') && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Karate Belt</Label>
+                    <Select
+                      value={formData.karateBeltRank}
+                      onValueChange={(value) => updateField('karateBeltRank', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="white">White</SelectItem>
+                        <SelectItem value="yellow">Yellow</SelectItem>
+                        <SelectItem value="orange">Orange</SelectItem>
+                        <SelectItem value="green">Green</SelectItem>
+                        <SelectItem value="blue">Blue</SelectItem>
+                        <SelectItem value="brown">Brown</SelectItem>
+                        <SelectItem value="black">Black</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Kyu</Label>
+                    <Select
+                      value={formData.karateKyu.toString()}
+                      onValueChange={(value) => updateField('karateKyu', parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n}º Kyu
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Membership Step */}
           {currentStep === 'membership' && (
             <div className="space-y-4">
@@ -518,19 +619,21 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-4 border-t">
             <Button
+              type="button"
               variant="outline"
+              disabled={isSubmitting}
               onClick={currentStepIndex === 0 ? onCancel : handleBack}
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               {currentStepIndex === 0 ? t.cancel : 'Back'}
             </Button>
             {currentStepIndex === steps.length - 1 ? (
-              <Button onClick={handleSubmit} className="bg-primary">
-                {t.submitEnrollment}
+              <Button type="button" disabled={isSubmitting} onClick={handleSubmit} className="bg-primary">
+                {isSubmitting ? 'Salvando...' : t.submitEnrollment}
                 <Check className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button onClick={handleNext} className="bg-primary">
+              <Button type="button" disabled={isSubmitting} onClick={handleNext} className="bg-primary">
                 Next
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>

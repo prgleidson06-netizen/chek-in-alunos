@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Header } from '@/components/header'
 import { SearchSection } from '@/components/search-section'
 import { RecentArrivals } from '@/components/student-cards'
@@ -14,6 +14,10 @@ import { AppProvider, useApp } from '@/components/app-provider'
 import type { Student, CheckIn } from '@/lib/database'
 import { toast, Toaster } from 'sonner'
 
+const getBaseUrl = () => {
+  return ''
+}
+
 function KioskApp() {
   const { t } = useApp()
   const [activeTab, setActiveTab] = useState('CHECK-IN')
@@ -22,37 +26,48 @@ function KioskApp() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([])
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([])
   const [showStudentsList, setShowStudentsList] = useState(false)
-
-  const loadStudents = async () => {
-    try {
-      const res = await fetch('/api/students', { cache: 'no-store' })
-      const data = await res.json()
-      setStudents(Array.isArray(data) ? data : [])
-    } catch {
-      setStudents([])
-    }
-  }
-
-  const loadCheckIns = async () => {
-    try {
-      const res = await fetch('/api/checkins', { cache: 'no-store' })
-      const data = await res.json()
-      const valid = Array.isArray(data) ? data.filter(c => c.checkInTime && !isNaN(new Date(c.checkInTime).getTime())) : []
-      setCheckIns(valid)
-    } catch {
-      setCheckIns([])
-    }
-  }
+  
+  // Sinalizador de controle rígido de requisições
+  const isFetchingRef = useRef(false)
 
   const loadAll = async () => {
-    await loadStudents()
-    await loadCheckIns()
+    // 🛡️ Se já houver uma busca rodando na rede local, ignora completamente a nova para não travar o tablet
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+
+    const baseUrl = getBaseUrl()
+
+    try {
+      const resStudents = await fetch(`${baseUrl}/api/students`, { cache: 'no-store' })
+      if (resStudents.ok) {
+        const dataStudents = await resStudents.json()
+        setStudents(Array.isArray(dataStudents) ? dataStudents : [])
+      }
+    } catch (err) {
+      console.error("Erro estudantes:", err)
+    }
+
+    try {
+      const resCheckIns = await fetch(`${baseUrl}/api/checkins`, { cache: 'no-store' })
+      if (resCheckIns.ok) {
+        const dataCheckIns = await resCheckIns.json()
+        const validCheckIns = Array.isArray(dataCheckIns) 
+          ? dataCheckIns.filter(c => c.checkInTime && !isNaN(new Date(c.checkInTime).getTime())) 
+          : []
+        setCheckIns(validCheckIns)
+      }
+    } catch (err) {
+      console.error("Erro check-ins:", err)
+    }
+
+    isFetchingRef.current = false
   }
 
   useEffect(() => {
     loadAll()
-    // Sincroniza as telas a cada 5 segundos de forma dinâmica
-    const interval = setInterval(loadAll, 5000)
+    
+    // 🔄 Aumentado para 8 segundos para dar fôlego ao Wi-Fi da recepção
+    const interval = setInterval(loadAll, 8000)
     return () => clearInterval(interval)
   }, [])
 
@@ -97,11 +112,12 @@ function KioskApp() {
       checkInTime: now.toISOString(),
     }
 
-    // Atualização visual imediata na tela do dispositivo que clicou
     setCheckIns(prev => [...prev, checkIn])
 
     try {
-      await fetch('/api/checkins', {
+      const baseUrl = getBaseUrl()
+      
+      await fetch(`${baseUrl}/api/checkins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(checkIn),
@@ -112,7 +128,8 @@ function KioskApp() {
         totalClasses: (student.totalClasses || 0) + 1,
         updatedAt: now.toISOString(),
       }
-      await fetch('/api/students', {
+      
+      await fetch(`${baseUrl}/api/students`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStudent),

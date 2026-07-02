@@ -51,7 +51,6 @@ export function AdminPanel() {
     loadClasses()
   }, [])
 
-  // FUNÇÃO: DELETAR ALUNO
   const handleDeleteStudent = async (id: string, name: string) => {
     const confirmDelete = window.confirm(`Deseja realmente deletar o aluno ${name}? Essa ação é permanente.`)
     if (!confirmDelete) return
@@ -70,7 +69,7 @@ export function AdminPanel() {
     }
   }
 
-  // FUNÇÃO: EDITAR DADOS DO ALUNO
+  // FUNÇÃO: EDITAR DADOS DO ALUNO COM TRAVA INTELIGENTE E ENVIO ISOLADO SEGURO
   const handleEditStudent = async (student: Student) => {
     const newFirstName = prompt('Editar Primeiro Nome:', student.firstName)
     if (newFirstName === null) return 
@@ -78,39 +77,57 @@ export function AdminPanel() {
     const newLastName = prompt('Editar Sobrenome:', student.lastName)
     if (newLastName === null) return
 
-    const newBelt = prompt('Editar Faixa (white, blue, purple, brown, black):', student.beltRank)
+    const confirmarCategoria = window.confirm(`O aluno ${newFirstName} é da categoria INFANTIL / KIDS?\n\n[Clique em OK para Infantil]\n[Clique em Cancelar para Adulto]`)
+    const ehInfantil = confirmarCategoria
+
+    const faixasInfantil = ['branca', 'cinza', 'amarela', 'laranja', 'verde']
+    const faixasAdulto = ['branca', 'azul', 'roxa', 'marrom', 'preta', 'coral', 'vermelha']
+
+    const faixasDisponiveis = ehInfantil ? faixasInfantil : faixasAdulto
+    const mensagemFaixa = ehInfantil 
+      ? `🥋 Categoria: INFANTIL / KIDS.\nOpções: ${faixasInfantil.join(', ')}`
+      : `🥋 Categoria: ADULTO.\nOpções: ${faixasAdulto.join(', ')}`
+
+    let newBelt = prompt(`${mensagemFaixa}\n\nDigite a nova faixa exatamente como listada acima:`, student.beltRank || 'branca')
     if (newBelt === null) return
+    
+    newBelt = newBelt.trim().toLowerCase()
+
+    if (!faixasDisponiveis.includes(newBelt)) {
+      toast.error(`Faixa "${newBelt}" inválida para esta categoria.`)
+      return
+    }
 
     const updatedStudent: Student = {
       ...student,
       firstName: newFirstName.trim() || student.firstName,
       lastName: newLastName.trim() || student.lastName,
-      // O "as any" remove o bloqueio do TypeScript garantindo que aceite a edição
-      beltRank: (newBelt.trim().toLowerCase() || student.beltRank) as any
+      beltRank: newBelt as any,
+      updatedAt: new Date().toISOString()
     }
 
     try {
-      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
-
+      // 🚀 ENVIA APENAS UM OBJETO: A API intercepta e altera cirurgicamente no JSON do Mac
       await fetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStudent),
       })
-      toast.success('Cadastro do aluno atualizado!')
+
+      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
+      toast.success('Cadastro do aluno atualizado com sucesso!')
     } catch {
       toast.error('Erro ao salvar edições do aluno.')
       loadStudents()
     }
   }
 
-  // 🔥 NOVA FUNÇÃO EXCLUSIVA: EDITAR FOTO DO ALUNO
   const handleEditPhoto = async (student: Student) => {
     const currentPhoto = student.photo || '/images/fju-badge.jpg'
     const newPhotoUrl = prompt('Cole o link (URL) da nova foto do aluno:', currentPhoto)
     
     if (newPhotoUrl === null || newPhotoUrl.trim() === '' || newPhotoUrl === currentPhoto) {
-      return // Cancelou ou não mudou nada
+      return
     }
 
     const updatedStudent: Student = {
@@ -120,25 +137,23 @@ export function AdminPanel() {
     }
 
     try {
-      // Atualiza na tela na hora
-      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
-
-      // Salva no banco local do Mac
+      // 🚀 ENVIA APENAS UM OBJETO
       await fetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStudent),
       })
+
+      setStudents(prev => prev.map(s => s.id === student.id ? updatedStudent : s))
       toast.success(`Foto de ${student.firstName} atualizada!`)
     } catch {
       toast.error('Erro ao salvar a nova foto.')
-      loadStudents() // Recarrega do banco em caso de erro
+      loadStudents()
     }
   }
 
-  // FUNÇÃO: ADICIONAR AULA
   const handleAddClass = () => {
-    const name = prompt('Nome da Aula (ex: No-Gi, Kids, Avançado):')
+    const name = prompt('Nome da Aula (ex: Jiujitsu - Infantil, Jiujitsu - Adulto):')
     if (!name) return
     const instructor = prompt('Nome do Professor / Instrutor:') || 'Instrutor FJU'
     const startTime = prompt('Horário de Início (ex: 19:00):') || '19:00'
@@ -160,7 +175,6 @@ export function AdminPanel() {
     toast.success('Nova aula adicionada!')
   }
 
-  // FUNÇÃO: DELETAR AULA
   const handleDeleteClass = (id: string) => {
     if (!confirm('Deseja remover este horário de aula da grade?')) return
     const updatedClasses = classes.filter(c => c.id !== id)
@@ -230,19 +244,16 @@ export function AdminPanel() {
           <CardContent>
             <div className="space-y-3">
               {filteredStudents.map((student) => {
-                // Define a foto: Usa a foto do aluno OU o brasão da FJU por padrão
                 const studentPhoto = student.photo || '/images/fju-badge.jpg'
 
                 return (
                   <div key={student.id} className="flex items-center justify-between border border-zinc-800/80 bg-zinc-950/40 rounded-xl p-4 hover:border-zinc-700 transition group">
                     <div className="flex items-center gap-4">
-                      {/* 📸 FOTO DO ALUNO NO ADMIN (RESTAURADA) */}
                       <img 
                         src={studentPhoto} 
                         alt={`${student.firstName} ${student.lastName}`} 
                         className="w-12 h-12 rounded-full object-cover border border-zinc-700 flex-shrink-0"
                         onError={(e) => {
-                          // Se a foto der erro, carrega o badge da FJU
                           (e.target as HTMLImageElement).src = '/images/fju-badge.jpg'
                         }}
                       />
@@ -258,7 +269,6 @@ export function AdminPanel() {
                         <p className="text-xs text-zinc-500">{student.totalClasses || 0} aulas</p>
                       </div>
                       
-                      {/* 🖼️ BOTÃO DE EDITAR FOTO (NOVO) */}
                       <Button 
                         variant="ghost" 
                         size="icon" 
