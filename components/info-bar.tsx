@@ -22,20 +22,36 @@ export function InfoBar() {
   const [editAnnouncement, setEditAnnouncement] = useState('')
 
   useEffect(() => {
-    const current = getCurrentClass()
-    const next = getNextClass()
-    const cls = current || next
-    const st = getSettings()
-    setCurrentClass(cls)
-    setCheckInCount(getTodayCheckIns().length)
-    setSettings(st)
-    setEditClassName(cls?.name || '')
-    setEditInstructor(cls?.instructor || '')
-    setEditDay(String(cls?.dayOfWeek ?? 1))
-    setEditStart(cls?.startTime || '18:00')
-    setEditEnd(cls?.endTime || '19:00')
-    setEditCapacity(String(st.gymCapacity || 50))
-    setEditAnnouncement(st.announcements?.[0] || '')
+    let isMounted = true
+
+    async function loadInfo() {
+      const [current, next, todayCheckIns] = await Promise.all([
+        getCurrentClass(),
+        getNextClass(),
+        getTodayCheckIns(),
+      ])
+      const cls = current || next
+      const st = getSettings()
+
+      if (!isMounted) return
+
+      setCurrentClass(cls)
+      setCheckInCount(todayCheckIns.length)
+      setSettings(st)
+      setEditClassName(cls?.name || '')
+      setEditInstructor(cls?.instructor || '')
+      setEditDay(String(cls?.dayOfWeek ?? 1))
+      setEditStart(cls?.startTime || '18:00')
+      setEditEnd(cls?.endTime || '19:00')
+      setEditCapacity(String(st.gymCapacity || 50))
+      setEditAnnouncement(st.announcements?.[0] || '')
+    }
+
+    loadInfo()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const saveEdits = () => {

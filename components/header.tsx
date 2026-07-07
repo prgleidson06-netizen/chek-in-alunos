@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, LogOut, Shield } from 'lucide-react'
+import { Globe2, LogOut, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useApp } from '@/components/app-provider'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -29,19 +30,28 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
   const [showLoginDialog, setShowLoginDialog] = useState(false)
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState(false)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
-  const handleLogin = () => {
-    if (login(password)) {
+  const handleLogin = async () => {
+    setIsLoggingIn(true)
+    const success = await login(password)
+    setIsLoggingIn(false)
+
+    if (success) {
       setShowLoginDialog(false)
       setPassword('')
       setLoginError(false)
+      onTabChange('ADMIN')
     } else {
       setLoginError(true)
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
+    if (activeTab === 'ADMIN') {
+      onTabChange('CHECK-IN')
+    }
   }
 
   const languages = [
@@ -53,13 +63,18 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
 
   const tabs = [
     { id: 'CHECK-IN', label: t.checkIn },
-    { id: 'ALUNOS', label: t.students },
-    { id: 'MATRÍCULA', label: t.enrollment },
+    { id: 'ALUNOS', label: t.students, requiresAdmin: true },
+    { id: 'MATRÍCULA', label: t.enrollment, requiresAdmin: true },
+    { id: 'ADMIN', label: t.adminPanel, requiresAdmin: true },
   ]
 
-  // Add admin tab if logged in
-  if (isAdmin) {
-    tabs.push({ id: 'ADMIN', label: t.adminPanel })
+  const handleTabClick = (tab: { id: string; requiresAdmin?: boolean }) => {
+    if (tab.requiresAdmin && !isAdmin) {
+      setShowLoginDialog(true)
+      return
+    }
+
+    onTabChange(tab.id)
   }
 
   return (
@@ -74,14 +89,14 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
             <img 
               src="/images/fju-logo.png" 
               alt="FJU" 
-              className="h-12 object-contain"
+              className="h-11 sm:h-12 object-contain"
             />
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-foreground">
-                FJU ARTES MARCIAIS
+            <div className="leading-tight hidden min-[420px]:block">
+              <h1 className="text-sm sm:text-base font-black tracking-wide text-foreground uppercase">
+                Artes Marciais
               </h1>
-              <p className="text-xs text-primary tracking-widest">
-                UNITED STATES & CANADA
+              <p className="text-[10px] sm:text-[11px] font-semibold text-primary tracking-[0.18em] uppercase">
+                United States & Canada
               </p>
             </div>
           </div>
@@ -91,9 +106,9 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
             {/* Language selector */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <span>{languages.find(l => l.code === language)?.flag}</span>
-                  <span>{language.toUpperCase()}</span>
+                <Button variant="ghost" size="sm" className="gap-1.5 px-2" aria-label="Selecionar idioma">
+                  <Globe2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xl leading-none">{languages.find(l => l.code === language)?.flag}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -101,10 +116,10 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
                   <DropdownMenuItem
                     key={lang.code}
                     onClick={() => setLanguage(lang.code as 'pt' | 'en' | 'es' | 'fr')}
-                    className={language === lang.code ? 'bg-accent' : ''}
+                    className={`justify-center text-xl ${language === lang.code ? 'bg-accent' : ''}`}
                   >
-                    <span className="mr-2">{lang.flag}</span>
-                    {lang.label}
+                    <span aria-hidden="true">{lang.flag}</span>
+                    <span className="sr-only">{lang.label}</span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -144,7 +159,7 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="hidden sm:inline">ADMIN LOGIN</span>
+                <span className="hidden sm:inline">{t.adminLogin}</span>
               </Button>
             )}
 
@@ -153,7 +168,7 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => onTabChange(tab.id)}
+                  onClick={() => handleTabClick(tab)}
                   className={`px-4 py-2 text-sm font-medium transition-colors ${
                     activeTab === tab.id
                       ? 'text-primary border-b-2 border-primary'
@@ -176,6 +191,9 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               <Shield className="w-5 h-5 text-primary" />
               {t.adminLogin}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {t.adminLoginDescription}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex justify-center">
@@ -194,7 +212,7 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
                   setPassword(e.target.value)
                   setLoginError(false)
                 }}
-                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && void handleLogin()}
                 placeholder="••••••••"
                 className={loginError ? 'border-red-500' : ''}
               />
@@ -202,8 +220,8 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
                 <p className="text-red-500 text-sm mt-1">{t.invalidPassword}</p>
               )}
             </div>
-            <Button onClick={handleLogin} className="w-full bg-primary">
-              {t.login}
+            <Button onClick={() => void handleLogin()} className="w-full bg-primary" disabled={isLoggingIn}>
+              {isLoggingIn ? t.loggingIn : t.login}
             </Button>
           </div>
         </DialogContent>

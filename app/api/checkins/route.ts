@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import fsSync from 'fs'
 import path from 'path'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +35,11 @@ async function readCheckIns() {
 }
 
 // GET: Retorna apenas os check-ins recentes para não sobrecarregar a memória do tablet
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Acesso administrativo necessario' }, { status: 401 })
+  }
+
   try {
     const allCheckIns = await readCheckIns()
     
@@ -59,6 +64,10 @@ export async function GET() {
 
 // POST: Salva novos check-ins de forma assíncrona e segura
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Acesso administrativo necessario' }, { status: 401 })
+  }
+
   try {
     const checkIn = await request.json()
     

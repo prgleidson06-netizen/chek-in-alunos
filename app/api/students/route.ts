@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import fsSync from 'fs'
 import path from 'path'
+import type { Student } from '@/lib/database' // 👈 Garante a tipagem correta no build
+import { isAdminRequest } from '@/lib/admin-auth'
 
 const filePath = path.join(process.cwd(), 'data', 'students.json')
 
@@ -19,7 +21,11 @@ export async function OPTIONS() {
 }
 
 // GET: Leitura assíncrona de alta performance
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: "Acesso administrativo necessario" }, { status: 401 })
+  }
+
   try {
     if (!fsSync.existsSync(filePath)) {
       return NextResponse.json([], { headers: corsHeaders() })
@@ -36,6 +42,10 @@ export async function GET() {
 
 // POST: Sincronização inteligente sem inundação de arquivos de backup
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: "Acesso administrativo necessario" }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     

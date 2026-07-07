@@ -19,7 +19,7 @@ const getBaseUrl = () => {
 }
 
 function KioskApp() {
-  const { t } = useApp()
+  const { t, isAdmin } = useApp()
   const [activeTab, setActiveTab] = useState('CHECK-IN')
   const [searchQuery, setSearchQuery] = useState('')
   const [students, setStudents] = useState<Student[]>([])
@@ -31,6 +31,14 @@ function KioskApp() {
   const isFetchingRef = useRef(false)
 
   const loadAll = async () => {
+    if (!isAdmin) {
+      setStudents([])
+      setCheckIns([])
+      setFilteredStudents([])
+      isFetchingRef.current = false
+      return
+    }
+
     // 🛡️ Se já houver uma busca rodando na rede local, ignora completamente a nova para não travar o tablet
     if (isFetchingRef.current) return
     isFetchingRef.current = true
@@ -64,12 +72,19 @@ function KioskApp() {
   }
 
   useEffect(() => {
+    if (!isAdmin) {
+      setStudents([])
+      setCheckIns([])
+      setFilteredStudents([])
+      return
+    }
+
     loadAll()
     
     // 🔄 Aumentado para 8 segundos para dar fôlego ao Wi-Fi da recepção
     const interval = setInterval(loadAll, 8000)
     return () => clearInterval(interval)
-  }, [])
+  }, [isAdmin])
 
   const handleSearch = () => {
     const q = searchQuery.toLowerCase().trim()
@@ -87,6 +102,11 @@ function KioskApp() {
   }
 
   const handleCheckIn = async (student: Student) => {
+    if (!isAdmin) {
+      toast.error(t.adminRequiredForCheckIn)
+      return
+    }
+
     const now = new Date()
     const today = now.toISOString().split('T')[0]
 
@@ -117,11 +137,15 @@ function KioskApp() {
     try {
       const baseUrl = getBaseUrl()
       
-      await fetch(`${baseUrl}/api/checkins`, {
+      const checkInResponse = await fetch(`${baseUrl}/api/checkins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(checkIn),
       })
+
+      if (!checkInResponse.ok) {
+        throw new Error('checkins API returned an error')
+      }
       
       const updatedStudent: Student = {
         ...student,
@@ -129,17 +153,23 @@ function KioskApp() {
         updatedAt: now.toISOString(),
       }
       
-      await fetch(`${baseUrl}/api/students`, {
+      const studentResponse = await fetch(`${baseUrl}/api/students`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedStudent),
       })
+
+      if (!studentResponse.ok) {
+        throw new Error('students API returned an error')
+      }
 
       await loadAll()
       setFilteredStudents([])
       setSearchQuery('')
       toast.success(`Check-in realizado - ${student.firstName}`)
     } catch (err) {
+      setCheckIns(prev => prev.filter(item => item.id !== checkIn.id))
+      toast.error(t.checkInSaveError)
       loadAll()
     }
   }
@@ -165,6 +195,28 @@ function KioskApp() {
     if (activeTab === 'ADMIN') {
       return <AdminPanel />
     }
+
+    if (!isAdmin) {
+      return (
+        <>
+          <SearchSection
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onSearch={() => toast.error(t.adminRequiredForCheckIn)}
+          />
+          <section className="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full relative z-10">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 p-6 text-center text-zinc-200">
+              <h2 className="text-lg font-bold uppercase tracking-wide">{t.checkInBlocked}</h2>
+              <p className="mt-2 text-sm text-zinc-400">
+                {t.checkInBlockedMessage}
+              </p>
+            </div>
+          </section>
+          <InfoBar />
+        </>
+      )
+    }
+
     return (
       <>
         <SearchSection 
@@ -187,7 +239,11 @@ function KioskApp() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background relative">
+    <div className="app-watermark min-h-screen flex flex-col bg-background relative">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 bg-[url('/images/fju-badge.jpg')] bg-center bg-no-repeat opacity-[0.07] grayscale-[15%] [background-size:min(62vw,560px)] max-sm:opacity-[0.055] max-sm:[background-size:82vw]"
+      />
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 flex flex-col relative z-10">
         {renderContent()}

@@ -13,12 +13,19 @@ export const translations = {
     // Search Section
     studentCheckIn: 'CHECK-IN DO ALUNO',
     searchPlaceholder: 'Pesquisar por nome ou ID do aluno...',
+    searchNamePlaceholder: 'DIGITE SEU NOME PARA COMEÇAR...',
+    checkInWelcome: 'Bem-vindo de volta, guerreiro. Busque o seu nome abaixo para registrar seu treino de hoje.',
     idKeypad: 'Teclado ID',
     search: 'Buscar',
     
     // Student Cards
     recentArrivals: 'Chegadas Recentes',
     checkedIn: 'Check-in',
+    checked: 'Confirmado',
+    all: 'Todos',
+    viewAll: 'Ver todos',
+    classes: 'Aulas',
+    noStudentsRegistered: 'Nenhum aluno cadastrado ou encontrado.',
     belt: 'Faixa',
     stripes: 'graus',
     monthly: 'Mensal',
@@ -122,6 +129,12 @@ export const translations = {
     adminLoginTitle: 'Login Administrativo',
     password: 'Senha',
     login: 'Entrar',
+    loggingIn: 'Entrando...',
+    adminLoginDescription: 'Digite a senha de administrador para acessar o painel administrativo.',
+    adminRequiredForCheckIn: 'Entre como administrador para liberar o check-in.',
+    checkInBlocked: 'Check-in bloqueado',
+    checkInBlockedMessage: 'Para usar o tablet da entrada, clique em Login Admin e entre com a senha. Depois os alunos aparecem para registrar o treino.',
+    checkInSaveError: 'Nao foi possivel registrar o check-in. Verifique se o admin esta conectado.',
     invalidPassword: 'Senha incorreta',
     loginButton: 'Entrar',
     invalidCredentials: 'Credenciais inválidas',
@@ -132,13 +145,13 @@ export const translations = {
 Eu, abaixo assinado, declaro estar ciente e concordo com os seguintes termos:
 
 1. RECONHECIMENTO DE RISCOS
-Reconheço que a prática de Jiu-Jitsu Brasileiro envolve riscos inerentes, incluindo, mas não limitado a: lesões físicas, fraturas, entorses, contusões e outras condições médicas.
+Reconheço que a prática de Jiu-Jitsu Brasileiro, artes marciais, treinamentos, aulas, lutas, sparring, exercícios físicos e atividades relacionadas envolve riscos inerentes e imprevisíveis. Esses riscos incluem, mas não se limitam a: quedas, impactos, torções, luxações, cortes, contusões, fraturas, lesões musculares, lesões articulares, lesões na cabeça, pescoço, coluna ou sistema nervoso, perda de consciência, agravamento de condições médicas preexistentes, incapacidade temporária ou permanente e, em casos extremos, morte.
 
 2. CONDIÇÃO FÍSICA
 Declaro que estou em condições físicas adequadas para a prática de artes marciais e que não possuo nenhuma condição médica que me impeça de participar das atividades.
 
 3. ISENÇÃO DE RESPONSABILIDADE
-Isento a FJU Artes Marciais, seus instrutores, funcionários e representantes de qualquer responsabilidade por lesões ou danos que possam ocorrer durante a prática.
+Assumo voluntariamente todos os riscos relacionados à participação nas atividades da FJU Artes Marciais, FJU Martial Arts Team e Igreja Universal do Reino de Deus. Isento, libero e concordo em não responsabilizar a FJU Artes Marciais, FJU Martial Arts Team, Igreja Universal do Reino de Deus, seus instrutores, voluntários, funcionários, representantes, parceiros e responsáveis pelo local por quaisquer lesões, perdas, danos, despesas, reclamações ou consequências que possam ocorrer antes, durante ou após a prática, exceto quando a lei aplicável não permitir tal isenção.
 
 4. REGRAS E REGULAMENTOS
 Concordo em seguir todas as regras e regulamentos da academia, incluindo normas de higiene, respeito aos colegas e instrutores.
@@ -156,6 +169,9 @@ Se o participante for menor de 18 anos, o responsável legal assume todas as res
     deleteStudent: 'Excluir Aluno',
     confirmDelete: 'Tem certeza que deseja excluir este aluno?',
     cancel: 'Cancelar',
+    back: 'Voltar',
+    next: 'Próximo',
+    saving: 'Salvando...',
     save: 'Salvar',
     edit: 'Editar',
     delete: 'Excluir',
@@ -195,12 +211,19 @@ Se o participante for menor de 18 anos, o responsável legal assume todas as res
     // Search Section
     studentCheckIn: 'STUDENT CHECK-IN',
     searchPlaceholder: 'Search by student name or ID...',
+    searchNamePlaceholder: 'TYPE YOUR NAME TO START...',
+    checkInWelcome: 'Welcome back, warrior. Search your name below to register today’s training.',
     idKeypad: 'ID Keypad',
     search: 'Search',
     
     // Student Cards
     recentArrivals: 'Recent Arrivals',
     checkedIn: 'Checked In',
+    checked: 'Checked',
+    all: 'All',
+    viewAll: 'View all',
+    classes: 'Classes',
+    noStudentsRegistered: 'No students registered or found.',
     belt: 'Belt',
     stripes: 'stripes',
     monthly: 'Monthly',
@@ -304,6 +327,12 @@ Se o participante for menor de 18 anos, o responsável legal assume todas as res
     adminLoginTitle: 'Admin Login',
     password: 'Password',
     login: 'Login',
+    loggingIn: 'Logging in...',
+    adminLoginDescription: 'Enter the administrator password to access the admin panel.',
+    adminRequiredForCheckIn: 'Log in as administrator to enable check-in.',
+    checkInBlocked: 'Check-in locked',
+    checkInBlockedMessage: 'To use the entrance tablet, click Admin Login and enter the password. Then students will appear to register training.',
+    checkInSaveError: 'Could not register check-in. Make sure the admin session is connected.',
     invalidPassword: 'Invalid password',
     loginButton: 'Login',
     invalidCredentials: 'Invalid credentials',
@@ -338,6 +367,9 @@ If the participant is under 18 years of age, the legal guardian assumes all resp
     deleteStudent: 'Delete Student',
     confirmDelete: 'Are you sure you want to delete this student?',
     cancel: 'Cancel',
+    back: 'Back',
+    next: 'Next',
+    saving: 'Saving...',
     save: 'Save',
     edit: 'Edit',
     delete: 'Delete',
@@ -377,12 +409,19 @@ If the participant is under 18 years of age, the legal guardian assumes all resp
     // Search Section
     studentCheckIn: 'CHECK-IN DEL ALUMNO',
     searchPlaceholder: 'Buscar por nombre o ID del alumno...',
+    searchNamePlaceholder: 'ESCRIBA SU NOMBRE PARA COMENZAR...',
+    checkInWelcome: 'Bienvenido de vuelta, guerrero. Busque su nombre abajo para registrar el entrenamiento de hoy.',
     idKeypad: 'Teclado ID',
     search: 'Buscar',
     
     // Student Cards
     recentArrivals: 'Llegadas Recientes',
     checkedIn: 'Registrado',
+    checked: 'Confirmado',
+    all: 'Todos',
+    viewAll: 'Ver todos',
+    classes: 'Clases',
+    noStudentsRegistered: 'No hay alumnos registrados o encontrados.',
     belt: 'Cinturón',
     stripes: 'grados',
     monthly: 'Mensual',
@@ -486,6 +525,12 @@ If the participant is under 18 years of age, the legal guardian assumes all resp
     adminLoginTitle: 'Acceso Administrativo',
     password: 'Contraseña',
     login: 'Iniciar Sesión',
+    loggingIn: 'Entrando...',
+    adminLoginDescription: 'Ingrese la contraseña de administrador para acceder al panel administrativo.',
+    adminRequiredForCheckIn: 'Entre como administrador para habilitar el check-in.',
+    checkInBlocked: 'Check-in bloqueado',
+    checkInBlockedMessage: 'Para usar la tableta de entrada, haga clic en Acceso Administrativo e ingrese la contraseña. Después aparecerán los alumnos para registrar el entrenamiento.',
+    checkInSaveError: 'No se pudo registrar el check-in. Verifique si el administrador está conectado.',
     invalidPassword: 'Contraseña incorrecta',
     loginButton: 'Entrar',
     invalidCredentials: 'Credenciales inválidas',
@@ -520,6 +565,9 @@ Si el participante es menor de 18 años, el tutor legal asume todas las responsa
     deleteStudent: 'Eliminar Alumno',
     confirmDelete: '¿Está seguro de que desea eliminar este alumno?',
     cancel: 'Cancelar',
+    back: 'Volver',
+    next: 'Siguiente',
+    saving: 'Guardando...',
     save: 'Guardar',
     edit: 'Editar',
     delete: 'Eliminar',
@@ -559,12 +607,19 @@ Si el participante es menor de 18 años, el tutor legal asume todas las responsa
     // Search Section
     studentCheckIn: "CHECK-IN DE L'ÉLÈVE",
     searchPlaceholder: "Rechercher par nom ou ID de l'élève...",
+    searchNamePlaceholder: 'TAPEZ VOTRE NOM POUR COMMENCER...',
+    checkInWelcome: "Bon retour, guerrier. Recherchez votre nom ci-dessous pour enregistrer l'entraînement d'aujourd'hui.",
     idKeypad: 'Clavier ID',
     search: 'Rechercher',
     
     // Student Cards
     recentArrivals: 'Arrivées Récentes',
     checkedIn: 'Enregistré',
+    checked: 'Confirmé',
+    all: 'Tous',
+    viewAll: 'Voir tous',
+    classes: 'Cours',
+    noStudentsRegistered: 'Aucun élève inscrit ou trouvé.',
     belt: 'Ceinture',
     stripes: 'degrés',
     monthly: 'Mensuel',
@@ -668,6 +723,12 @@ Si el participante es menor de 18 años, el tutor legal asume todas las responsa
     adminLoginTitle: 'Connexion Administrative',
     password: 'Mot de passe',
     login: 'Se Connecter',
+    loggingIn: 'Connexion...',
+    adminLoginDescription: "Entrez le mot de passe administrateur pour accéder au panneau d'administration.",
+    adminRequiredForCheckIn: "Connectez-vous comme administrateur pour activer le check-in.",
+    checkInBlocked: 'Check-in verrouillé',
+    checkInBlockedMessage: "Pour utiliser la tablette d'entrée, cliquez sur Connexion Administrative et entrez le mot de passe. Ensuite les élèves apparaîtront pour enregistrer l'entraînement.",
+    checkInSaveError: "Impossible d'enregistrer le check-in. Vérifiez que l'administrateur est connecté.",
     invalidPassword: 'Mot de passe incorrect',
     loginButton: 'Connexion',
     invalidCredentials: 'Identifiants invalides',
@@ -702,6 +763,9 @@ Si le participant a moins de 18 ans, le tuteur légal assume toutes les responsa
     deleteStudent: "Supprimer l'Élève",
     confirmDelete: 'Êtes-vous sûr de vouloir supprimer cet élève?',
     cancel: 'Annuler',
+    back: 'Retour',
+    next: 'Suivant',
+    saving: 'Enregistrement...',
     save: 'Enregistrer',
     edit: 'Modifier',
     delete: 'Supprimer',

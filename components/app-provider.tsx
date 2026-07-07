@@ -3,15 +3,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import type { Language } from '@/lib/i18n'
 import { getTranslation } from '@/lib/i18n'
-import { isAdminLoggedIn, adminLogin, adminLogout, initializeDemoData } from '@/lib/database'
+import { initializeDemoData } from '@/lib/database'
 
 interface AppContextType {
   language: Language
   setLanguage: (lang: Language) => void
   t: any
   isAdmin: boolean
-  login: (password: string) => boolean
-  logout: () => void
+  login: (password: string) => Promise<boolean>
+  logout: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -26,8 +26,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLanguageState(savedLang)
     }
 
-    setIsAdmin(isAdminLoggedIn())
     initializeDemoData()
+
+    fetch('/api/admin-session', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => setIsAdmin(Boolean(data?.isAdmin)))
+      .catch(() => setIsAdmin(false))
   }, [])
 
   const setLanguage = (lang: Language) => {
@@ -35,14 +39,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('fju_language', lang)
   }
 
-  const login = (password: string): boolean => {
-    const success = adminLogin(password)
+  const login = async (password: string): Promise<boolean> => {
+    const response = await fetch('/api/admin-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+    const success = response.ok
     if (success) setIsAdmin(true)
     return success
   }
 
-  const logout = () => {
-    adminLogout()
+  const logout = async () => {
+    await fetch('/api/admin-session', { method: 'DELETE' }).catch(() => null)
     setIsAdmin(false)
   }
 

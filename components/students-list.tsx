@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useApp } from '@/components/app-provider'
 import { Student } from '@/lib/database'
 import { AttendanceCardMini } from '@/components/attendance-card'
-import { Search, ArrowLeft, CheckCircle, IdCard, Printer, Pencil, Camera } from 'lucide-react'
+import { Search, ArrowLeft, IdCard, Printer, Pencil, Camera, Plus, Minus, Check } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -20,9 +20,10 @@ import { AttendanceCard } from '@/components/attendance-card'
 interface StudentsListProps {
   onBack: () => void
   onCheckIn: (student: Student) => void
+  onUpdateClasses?: (studentId: string, newCount: number) => Promise<void>
 }
 
-export function StudentsList({ onBack, onCheckIn }: StudentsListProps) {
+export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsListProps) {
   const { t } = useApp()
   const [students, setStudents] = useState<Student[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -59,30 +60,6 @@ export function StudentsList({ onBack, onCheckIn }: StudentsListProps) {
 
   const updateEditingField = (field: string, value: any) => {
     setEditingStudent(prev => prev ? { ...prev, [field]: value } : prev)
-  }
-
-  const addManualClass = async (student: Student) => {
-    const updatedStudent: Student = {
-      ...student,
-      totalClasses: (student.totalClasses || 0) + 1,
-      bjj: student.bjj ? {
-        ...student.bjj,
-        classes: (student.bjj.classes || 0) + 1,
-      } : {
-        beltRank: student.beltRank || 'white',
-        stripes: student.stripes || 0,
-        classes: (student.totalClasses || 0) + 1,
-      },
-      updatedAt: new Date().toISOString(),
-    }
-
-    await fetch('/api/students', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedStudent),
-    })
-
-    loadStudents()
   }
 
   const saveEditedStudent = async () => {
@@ -129,94 +106,7 @@ export function StudentsList({ onBack, onCheckIn }: StudentsListProps) {
   }
 
   const printStudentPdf = (student: Student) => {
-    const fullName = `${student.firstName} ${student.lastName}`
-
-    const html = `
-      <html>
-        <head>
-          <title>Ficha do Aluno - ${fullName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 32px; color: #111; }
-            .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid #d90429; padding-bottom: 16px; margin-bottom: 24px; }
-            .logo { font-size: 28px; font-weight: bold; color: #d90429; }
-            h1 { margin: 0; font-size: 26px; }
-            h2 { margin-top: 28px; color: #d90429; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
-            .photo { width: 110px; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid #ccc; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
-            .item { margin-bottom: 8px; font-size: 14px; }
-            .label { font-weight: bold; }
-            .signature { margin-top: 40px; border-top: 1px solid #111; width: 320px; padding-top: 8px; text-align: center; }
-            .waiver { line-height: 1.5; font-size: 13px; }
-            @media print { button { display: none; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <div class="logo">FJU ARTES MARCIAIS</div>
-              <div>United States & Canada</div>
-            </div>
-            <img class="photo" src="${student.photo || '/images/fju-badge.jpg'}" />
-          </div>
-
-          <h1>Ficha Completa do Aluno</h1>
-
-          <h2>Dados Pessoais</h2>
-          <div class="grid">
-            <div class="item"><span class="label">Nome:</span> ${fullName}</div>
-            <div class="item"><span class="label">Data de nascimento:</span> ${student.dateOfBirth || ''}</div>
-            <div class="item"><span class="label">Email:</span> ${student.email || ''}</div>
-            <div class="item"><span class="label">Telefone:</span> ${student.phone || ''}</div>
-            <div class="item"><span class="label">Endereço:</span> ${student.address || ''}</div>
-            <div class="item"><span class="label">Cidade/Estado:</span> ${student.city || ''} - ${student.state || ''}</div>
-            <div class="item"><span class="label">CEP:</span> ${student.zipCode || ''}</div>
-            <div class="item"><span class="label">País:</span> ${student.country || ''}</div>
-          </div>
-
-          <h2>Programas</h2>
-          <div class="grid">
-            <div class="item"><span class="label">Jiu-Jitsu:</span> ${student.programs?.bjj ? 'Sim' : 'Não'}</div>
-            <div class="item"><span class="label">Karate:</span> ${student.programs?.karate ? 'Sim' : 'Não'}</div>
-            <div class="item"><span class="label">Faixa BJJ:</span> ${student.bjj?.beltRank || student.beltRank || ''}</div>
-            <div class="item"><span class="label">Graus BJJ:</span> ${student.bjj?.stripes ?? student.stripes ?? 0}</div>
-            <div class="item"><span class="label">Faixa Karate:</span> ${student.karate?.beltRank || ''}</div>
-            <div class="item"><span class="label">Kyu Karate:</span> ${student.karate?.kyu || ''}</div>
-          </div>
-
-          <h2>Contato de Emergência</h2>
-          <div class="grid">
-            <div class="item"><span class="label">Nome:</span> ${student.emergencyName || ''}</div>
-            <div class="item"><span class="label">Telefone:</span> ${student.emergencyPhone || ''}</div>
-            <div class="item"><span class="label">Relação:</span> ${student.emergencyRelationship || ''}</div>
-          </div>
-
-          <h2>Informações Médicas</h2>
-          <div class="grid">
-            <div class="item"><span class="label">Alergias:</span> ${student.allergies || 'Nenhuma'}</div>
-            <div class="item"><span class="label">Condições médicas:</span> ${student.medicalConditions || 'Nenhuma'}</div>
-            <div class="item"><span class="label">Medicamentos:</span> ${student.medications || 'Nenhum'}</div>
-          </div>
-
-          <h2>Termo de Responsabilidade</h2>
-          <p class="waiver">
-            Declaro que as informações fornecidas nesta ficha são verdadeiras. Reconheço que a prática de artes marciais,
-            incluindo Jiu-Jitsu e Karate, envolve riscos físicos.
-          </p>
-
-          <div class="signature">
-            ${student.waiverSignature || fullName}<br />
-            Assinatura do aluno/responsável
-          </div>
-
-          <script>window.onload = () => window.print()</script>
-        </body>
-      </html>
-    `
-
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
+    window.open(`/student-print/${encodeURIComponent(student.id)}`, '_blank')
   }
 
   const beltColors: Record<string, string> = {
@@ -302,30 +192,68 @@ export function StudentsList({ onBack, onCheckIn }: StudentsListProps) {
                 <AttendanceCardMini student={student} />
               </div>
 
-              <div className="flex gap-2 mt-4 flex-wrap">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setSelectedStudent(student)}>
-                  <IdCard className="w-4 h-4 mr-1" />
-                  {t.attendanceCard}
-                </Button>
+              <div className="flex flex-col gap-2 mt-4 w-full">
+                {/* LINHA 1: BOTOES DE CONTROLE DO ALUNO */}
+                <div className="flex gap-2 w-full">
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setSelectedStudent(student)}>
+                    <IdCard className="w-4 h-4 mr-1" />
+                    Cartão de Frequência
+                  </Button>
 
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => printStudentPdf(student)}>
-                  <Printer className="w-4 h-4 mr-1" />
-                  PDF
-                </Button>
+                  <Button variant="outline" size="sm" className="p-2" title="Imprimir ficha completa" onClick={() => printStudentPdf(student)}>
+                    <Printer className="w-4 h-4" />
+                  </Button>
 
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => setEditingStudent(student)}>
-                  <Pencil className="w-4 h-4 mr-1" />
-                  Editar
-                </Button>
+                  <Button variant="outline" size="sm" className="p-2" onClick={() => setEditingStudent(student)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </div>
 
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => addManualClass(student)}>
-                  + Aula
-                </Button>
+                {/* LINHA 2: GERENCIADOR DE SALDO DE AULAS NATIVO (CORREÇÃO DE EXECUÇÃO EM DISPOSITIVOS MOVEIS) */}
+                <div className="flex gap-2 w-full">
+                  <div className="flex-1 flex items-center justify-between bg-zinc-800 p-1 rounded-md border border-zinc-700 h-10 select-none">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = student.totalClasses || 0;
+                        if (current > 0 && onUpdateClasses) {
+                          onUpdateClasses(student.id, current - 1);
+                        }
+                      }}
+                      disabled={(student.totalClasses || 0) <= 0}
+                      className="w-8 h-8 rounded bg-zinc-700 hover:bg-zinc-600 disabled:opacity-20 flex items-center justify-center text-white font-bold"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    
+                    <div className="flex flex-col items-center justify-center text-center px-1">
+                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-tight leading-none mb-0.5">Aulas</span>
+                      <span className="text-xs font-mono font-bold text-white leading-none">{student.totalClasses || 0}</span>
+                    </div>
 
-                <Button size="sm" className="flex-1 bg-primary" onClick={() => handleCheckIn(student)}>
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  CHECK-IN
-                </Button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = student.totalClasses || 0;
+                        if (onUpdateClasses) {
+                          onUpdateClasses(student.id, current + 1);
+                        }
+                      }}
+                      className="w-8 h-8 rounded bg-zinc-700 hover:bg-zinc-600 flex items-center justify-center text-white font-bold"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleCheckIn(student)}
+                    className="flex-1 bg-red-600 text-white font-bold uppercase tracking-wider text-xs h-10 rounded-md shadow-md active:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    CHECK-IN
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>

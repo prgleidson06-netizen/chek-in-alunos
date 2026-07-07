@@ -23,12 +23,14 @@ import {
 interface EnrollmentFormProps {
   onComplete: (student: Student) => void
   onCancel: () => void
+  submitEndpoint?: string
+  cancelLabel?: string
 }
 
 type Step = 'personal' | 'emergency' | 'medical' | 'photo' | 'program' | 'membership' | 'waiver'
 
-export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
-  const { t } = useApp()
+export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/students', cancelLabel }: EnrollmentFormProps) {
+  const { t, isAdmin } = useApp()
   const signatureRef = useRef<SignaturePadRef>(null)
   const [currentStep, setCurrentStep] = useState<Step>('personal')
   const [error, setError] = useState<string>('')
@@ -136,6 +138,12 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     }
   }
 
+  const goToStep = (step: Step) => {
+    if (!isAdmin || isSubmitting) return
+    setCurrentStep(step)
+    setError('')
+  }
+
   const handleSubmit = async () => {
     if (isSubmitting) return
     if (!validateStep()) return
@@ -169,7 +177,7 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
     }
 
     try {
-      const res = await fetch('/api/students', {
+      const res = await fetch(submitEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,21 +214,25 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
       <div className="mb-8">
         <div className="flex justify-between mb-2">
           {steps.map((step, index) => (
-            <div
-              key={step}
-              className={`flex items-center ${index < steps.length - 1 ? 'flex-1' : ''}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  index < currentStepIndex
-                    ? 'bg-green-500 text-white'
-                    : index === currentStepIndex
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground'
-                }`}
+              <button
+                type="button"
+                key={step}
+                disabled={!isAdmin || isSubmitting}
+                onClick={() => goToStep(step)}
+                className={`flex items-center ${index < steps.length - 1 ? 'flex-1' : ''}`}
+                title={isAdmin ? `Abrir passo: ${stepTitles[step]}` : undefined}
               >
-                {index < currentStepIndex ? <Check className="w-4 h-4" /> : index + 1}
-              </div>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition ${
+                    index < currentStepIndex
+                      ? 'bg-green-500 text-white'
+                      : index === currentStepIndex
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-muted-foreground'
+                  } ${isAdmin ? 'cursor-pointer ring-offset-background hover:ring-2 hover:ring-primary/50 hover:ring-offset-2' : ''}`}
+                >
+                  {index < currentStepIndex ? <Check className="w-4 h-4" /> : index + 1}
+                </div>
               {index < steps.length - 1 && (
                 <div
                   className={`flex-1 h-1 mx-2 ${
@@ -228,7 +240,7 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
                   }`}
                 />
               )}
-            </div>
+              </button>
           ))}
         </div>
         <p className="text-center text-sm text-muted-foreground">
@@ -625,16 +637,16 @@ export function EnrollmentForm({ onComplete, onCancel }: EnrollmentFormProps) {
               onClick={currentStepIndex === 0 ? onCancel : handleBack}
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              {currentStepIndex === 0 ? t.cancel : 'Back'}
+              {currentStepIndex === 0 ? cancelLabel || t.cancel : t.back}
             </Button>
             {currentStepIndex === steps.length - 1 ? (
               <Button type="button" disabled={isSubmitting} onClick={handleSubmit} className="bg-primary">
-                {isSubmitting ? 'Salvando...' : t.submitEnrollment}
+                {isSubmitting ? t.saving : t.submitEnrollment}
                 <Check className="w-4 h-4 ml-2" />
               </Button>
             ) : (
               <Button type="button" disabled={isSubmitting} onClick={handleNext} className="bg-primary">
-                Next
+                {t.next}
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
             )}

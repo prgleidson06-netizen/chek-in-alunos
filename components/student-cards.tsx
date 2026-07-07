@@ -4,20 +4,22 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Student, CheckIn } from '@/lib/database'
-import { Check, User } from 'lucide-react'
+import { Check, User, Plus, Minus } from 'lucide-react'
+import { useApp } from '@/components/app-provider'
 
 interface RecentArrivalsProps {
   students: Student[]
   checkIns: CheckIn[]
   onCheckIn: (student: Student) => void
   onViewAll: () => void
+  onUpdateClasses?: (studentId: string, newCount: number) => void
 }
 
-export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: RecentArrivalsProps) {
+export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpdateClasses }: RecentArrivalsProps) {
+  const { t } = useApp()
   const [filter, setFilter] = useState<'all'|'bjj'|'karate'>('all')
 
-  // 🚀 OTIMIZAÇÃO 1: Cria um Set de IDs com check-in hoje. Otimiza o tempo de busca de O(N) para O(1).
-  // Isso remove completamente o peso do .some() de dentro do loop .map()!
+  // OTIMIZAÇÃO 1: Cria um Set de IDs com check-in hoje. Otimiza o tempo de busca de O(N) para O(1).
   const checkedInStudentIdsToday = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
     const ids = new Set<string>()
@@ -33,7 +35,7 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
     return ids
   }, [checkIns])
 
-  // 🚀 OTIMIZAÇÃO 2: Memoriza os alunos filtrados para evitar reprocessamento na rolagem do tablet
+  // OTIMIZAÇÃO 2: Memoriza os alunos filtrados para evitar reprocessamento na rolagem do tablet
   const displayedStudents = useMemo(() => {
     const filtered = students.filter(student => {
       if (filter === 'bjj') return student.programs?.bjj ?? true
@@ -46,13 +48,27 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
   // Cache estático da imagem padrão para evitar requisições duplicadas
   const DEFAULT_BADGE = '/images/fju-badge.jpg'
 
+  // Evita o conflito de cliques e "ghost clicks" que travam navegadores móveis
+  const handleTouchStart = (e: React.TouchEvent, callback: () => void) => {
+    if (e.cancelable) {
+      e.preventDefault()
+    }
+    e.stopPropagation()
+    callback()
+  }
+
+  const handleMouseClick = (e: React.MouseEvent, callback: () => void) => {
+    e.stopPropagation()
+    callback()
+  }
+
   return (
     <div className="flex-1 p-4 md:p-6 max-w-7xl mx-auto w-full space-y-4 relative z-10">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold tracking-tight text-white uppercase">Selecione seu nome para o Check-in</h2>
+        <h2 className="text-lg font-bold tracking-tight text-white uppercase">{t.studentList}</h2>
         {students.length > 50 && (
           <Button variant="link" onClick={onViewAll} className="text-red-500 hover:text-red-400 p-0 h-auto font-semibold text-xs">
-            Ver todos ({students.length})
+            {t.viewAll} ({students.length})
           </Button>
         )}
       </div>
@@ -64,7 +80,7 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
           onClick={() => setFilter('all')}
           className="font-bold tracking-wider text-xs"
         >
-          TODOS
+          {t.all}
         </Button>
 
         <Button
@@ -88,7 +104,6 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {displayedStudents.map((student) => {
-          // 🚀 Busca instantânea O(1) usando o Set otimizado
           const isCheckedIn = checkedInStudentIdsToday.has(student.id)
           const studentPhoto = student.photo || DEFAULT_BADGE
 
@@ -101,6 +116,8 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
           const karateBelt = student.karate?.beltRank || 'white'
           const karateKyu = student.karate?.kyu || 10
 
+          const totalAulas = student.totalClasses ?? 0 
+
           return (
             <Card 
               key={student.id} 
@@ -108,57 +125,98 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
                 isCheckedIn ? 'ring-2 ring-emerald-500 border-transparent shadow-lg shadow-emerald-950/20' : 'hover:border-zinc-700'
               }`}
             >
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <img 
-                    src={studentPhoto} 
-                    alt={`${student.firstName} ${student.lastName}`} 
-                    className="w-12 h-12 rounded-full object-cover border border-zinc-700 pointer-events-none"
-                    loading="lazy" // Evita carregar fotos que não aparecem na tela de imediato
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement
-                      if (target.src !== DEFAULT_BADGE) {
-                        target.src = DEFAULT_BADGE
-                      }
-                    }}
-                  />
+              {/* RENDERIZAÇÃO PRINCIPAL DO CONTEÚDO DO CARD */}
+              <CardContent className="p-4 flex flex-col justify-between h-full space-y-4">
+                
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-shrink-0">
+                    <img 
+                      src={studentPhoto} 
+                      alt={`${student.firstName} ${student.lastName}`} 
+                      className="w-12 h-12 rounded-full object-cover border border-zinc-700 pointer-events-none"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        if (target.src !== DEFAULT_BADGE) {
+                          target.src = DEFAULT_BADGE
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-zinc-100 truncate">{student.firstName} {student.lastName}</p>
+                    <p className="text-[11px] text-red-400 font-bold uppercase mt-0.5 tracking-wide">
+                      {programText}
+                    </p>
+
+                    {hasBjj && (
+                      <p className="text-xs text-zinc-400 capitalize flex items-center gap-1 mt-0.5 truncate">
+                        🥋 BJJ: {bjjBelt} • {bjjStripes}G
+                      </p>
+                    )}
+
+                    {hasKarate && (
+                      <p className="text-xs text-zinc-400 capitalize flex items-center gap-1 mt-0.5 truncate">
+                        🥋 Karate: {karateBelt} • {karateKyu}º Kyu
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-zinc-100 truncate">{student.firstName} {student.lastName}</p>
-                  <p className="text-[11px] text-red-400 font-bold uppercase mt-0.5 tracking-wide">
-                    {programText}
-                  </p>
+                {/* BARRA INFERIOR DE COMPORTAMENTO REESTRUTURADA */}
+                <div className="flex items-center gap-2 w-full pt-2 border-t border-zinc-800/60">
+                  
+                  {/* GERENCIADOR DE AULAS COM BOTÕES MAIS E MENOS (Substituindo o antigo "+ Aula") */}
+                  <div className="flex-1 flex items-center justify-between bg-zinc-950/50 p-1 rounded-xl border border-zinc-800 h-10 relative z-20">
+                    <button
+                      type="button"
+                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, Math.max(0, totalAulas - 1)))}
+                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, Math.max(0, totalAulas - 1)))}
+                      disabled={totalAulas <= 0}
+                      className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 transition-colors text-zinc-300 touch-none select-none"
+                      title="Diminuir aula"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    
+                    <div className="flex flex-col items-center justify-center min-w-[32px] select-none">
+                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tight block leading-none mb-0.5">{t.classes}</span>
+                      <span className="text-xs font-mono font-bold text-zinc-200 leading-none">{totalAulas}</span>
+                    </div>
 
-                  {hasBjj && (
-                    <p className="text-xs text-zinc-400 capitalize flex items-center gap-1 mt-0.5 truncate">
-                      🥋 BJJ: {bjjBelt} • {bjjStripes}G
-                    </p>
-                  )}
+                    <button
+                      type="button"
+                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, totalAulas + 1))}
+                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, totalAulas + 1))}
+                      className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-300 touch-none select-none"
+                      title="Aumentar aula"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
-                  {hasKarate && (
-                    <p className="text-xs text-zinc-400 capitalize flex items-center gap-1 mt-0.5 truncate">
-                      🥋 Karate: {karateBelt} • {karateKyu}º Kyu
-                    </p>
-                  )}
+                  {/* BOTÃO DE CHECK-IN: FOCO TOTAL APENAS NO REGISTRO DE PRESENÇA */}
+                  <Button
+                    size="sm"
+                    variant={isCheckedIn ? 'default' : 'destructive'}
+                    disabled={isCheckedIn}
+                    onClick={(e) => handleMouseClick(e, () => onCheckIn(student))}
+                    onTouchStart={(e) => handleTouchStart(e, () => !isCheckedIn && onCheckIn(student))}
+                    className={`flex-1 rounded-xl font-bold text-xs h-10 px-2 transition-all duration-150 relative z-20 uppercase tracking-wider select-none ${
+                      isCheckedIn 
+                        ? 'bg-emerald-600 disabled:opacity-100 text-white cursor-default' 
+                        : 'bg-red-600 hover:bg-red-700 text-white shadow-md active:scale-95'
+                    }`}
+                  >
+                    {isCheckedIn ? (
+                      <span className="flex items-center justify-center gap-1"><Check className="w-3.5 h-3.5 stroke-[3]" /> {t.checked}</span>
+                    ) : (
+                      t.checkIn
+                    )}
+                  </Button>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant={isCheckedIn ? 'default' : 'destructive'}
-                  onClick={() => !isCheckedIn && onCheckIn(student)} // Trava o clique caso já esteja com check-in concluído
-                  className={`flex-shrink-0 rounded-xl font-bold text-xs h-9 px-3 transition-all duration-150 ${
-                    isCheckedIn 
-                      ? 'bg-emerald-600 hover:bg-emerald-600 text-white cursor-default' 
-                      : 'bg-red-600 hover:bg-red-700 text-white shadow-md active:scale-95'
-                  }`}
-                >
-                  {isCheckedIn ? (
-                    <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5 stroke-[3]" /> Checked</span>
-                  ) : (
-                    'Check-in'
-                  )}
-                </Button>
               </CardContent>
             </Card>
           )
@@ -167,7 +225,7 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll }: Rec
         {displayedStudents.length === 0 && (
           <div className="col-span-full text-center py-12 border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/30 relative z-10">
             <User className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-            <p className="text-zinc-500 text-sm">Nenhum aluno cadastrado ou encontrado.</p>
+            <p className="text-zinc-500 text-sm">{t.noStudentsRegistered}</p>
           </div>
         )}
       </div>
