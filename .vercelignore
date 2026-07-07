@@ -1,0 +1,7 @@
+node_modules
+.git
+backups
+v0-prgleidson06-9743-94fdbcb8
+*.log
+tsconfig.tsbuildinfo
+.DS_Store
