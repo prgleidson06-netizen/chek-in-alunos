@@ -69,11 +69,108 @@ function rowToStudent(row: any): Student {
   } as Student
 }
 
+function rowToStudentSummary(row: any): Student {
+  return {
+    id: row.id,
+    firstName: row.first_name || '',
+    lastName: row.last_name || '',
+    dateOfBirth: row.date_of_birth || '',
+    email: row.email || '',
+    phone: row.phone || '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: '',
+    emergencyName: '',
+    emergencyPhone: '',
+    emergencyRelationship: '',
+    allergies: '',
+    medicalConditions: '',
+    medications: '',
+    photo: '/images/fju-badge.jpg',
+    membershipType: 'monthly',
+    beltRank: 'white',
+    stripes: 0,
+    startDate: '',
+    waiverSignature: '',
+    waiverSignedAt: '',
+    waiverAgreed: false,
+    totalClasses: 0,
+    attendanceHistory: [],
+    createdAt: '',
+    updatedAt: row.updated_at || '',
+  } as Student
+}
+
 function rowToCheckIn(row: any): CheckIn {
   return {
     ...(row.data || {}),
     id: row.id,
   } as CheckIn
+}
+
+function normalizeCheckIn(checkIn: CheckIn): CheckIn {
+  const now = new Date().toISOString()
+  return {
+    ...checkIn,
+    id: checkIn.id || `${checkIn.studentId || 'checkin'}-${Date.now()}`,
+    checkInTime: checkIn.checkInTime || now,
+  }
+}
+
+function checkInsFromStudents(students: Student[]) {
+  const checkIns: CheckIn[] = []
+
+  for (const student of students) {
+    for (const record of student.attendanceHistory || []) {
+      checkIns.push({
+        id: record.id,
+        studentId: record.studentId || student.id,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        studentPhoto: student.photo || '/images/fju-badge.jpg',
+        beltRank: student.beltRank || 'white',
+        stripes: student.stripes || 0,
+        membershipType: student.membershipType || 'monthly',
+        classId: record.classId || 'open-mat',
+        className: record.className || 'Open Mat',
+        checkInTime: record.checkInTime,
+      })
+    }
+  }
+
+  return checkIns
+}
+
+async function saveCheckInOnStudent(checkIn: CheckIn) {
+  if (!checkIn.studentId) return
+
+  const student = await getStudent(checkIn.studentId)
+  if (!student) return
+
+  const attendanceHistory = Array.isArray(student.attendanceHistory)
+    ? student.attendanceHistory
+    : []
+
+  if (attendanceHistory.some((record) => record.id === checkIn.id)) return
+
+  const checkInTime = checkIn.checkInTime || new Date().toISOString()
+  await saveStudentRecord({
+    ...student,
+    totalClasses: Math.max(Number(student.totalClasses || 0) + 1, 1),
+    attendanceHistory: [
+      ...attendanceHistory,
+      {
+        id: checkIn.id,
+        studentId: checkIn.studentId,
+        classId: checkIn.classId || 'open-mat',
+        className: checkIn.className || 'Open Mat',
+        checkInTime,
+        date: checkInTime.split('T')[0],
+      },
+    ],
+    updatedAt: new Date().toISOString(),
+  })
 }
 
 export async function listStudents() {
@@ -82,11 +179,11 @@ export async function listStudents() {
   if (supabase) {
     const { data, error } = await supabase
       .from('students')
-      .select('id, data')
+      .select('id, first_name, last_name, date_of_birth, email, phone, updated_at')
       .order('first_name', { ascending: true })
 
     if (error) throw error
-    return (data || []).map(rowToStudent)
+    return (data || []).map(rowToStudentSummary)
   }
 
   return readJsonFile<Student>(studentsFile)
@@ -131,19 +228,44 @@ export async function saveStudentRecord(student: Student) {
   const supabase = getSupabaseServerClient()
 
   if (supabase) {
+    const { data: existingRow } = await supabase
+      .from('students')
+      .select('data')
+      .eq('id', nextStudent.id)
+      .maybeSingle()
+
+    const mergedStudent = {
+      ...(existingRow?.data || {}),
+      ...nextStudent,
+      totalClasses: Math.max(
+        Number(nextStudent.totalClasses || 0),
+        Number(existingRow?.data?.totalClasses || 0),
+      ),
+      attendanceHistory:
+        nextStudent.attendanceHistory || existingRow?.data?.attendanceHistory || [],
+      waiverSignature:
+        nextStudent.waiverSignature || existingRow?.data?.waiverSignature || '',
+      photo:
+        nextStudent.photo && nextStudent.photo !== '/images/fju-badge.jpg'
+          ? nextStudent.photo
+          : existingRow?.data?.photo || nextStudent.photo || '/images/fju-badge.jpg',
+      createdAt: nextStudent.createdAt || existingRow?.data?.createdAt || now,
+      updatedAt: now,
+    } as Student
+
     const { error } = await supabase.from('students').upsert({
-      id: nextStudent.id,
-      first_name: nextStudent.firstName || '',
-      last_name: nextStudent.lastName || '',
-      date_of_birth: nextStudent.dateOfBirth || null,
-      email: nextStudent.email || null,
-      phone: nextStudent.phone || null,
-      data: nextStudent,
+      id: mergedStudent.id,
+      first_name: mergedStudent.firstName || '',
+      last_name: mergedStudent.lastName || '',
+      date_of_birth: mergedStudent.dateOfBirth || null,
+      email: mergedStudent.email || null,
+      phone: mergedStudent.phone || null,
+      data: mergedStudent,
       updated_at: now,
     })
 
     if (error) throw error
-    return nextStudent
+    return mergedStudent
   }
 
   const students = await readJsonFile<Student>(studentsFile)
@@ -210,8 +332,31 @@ export async function listRecentCheckIns() {
       .gte('check_in_time', threeDaysAgo.toISOString())
       .order('check_in_time', { ascending: false })
 
-    if (error) throw error
-    return (data || []).map(rowToCheckIn)
+    if (error) {
+      const students = await listStudents()
+      return checkInsFromStudents(students)
+        .filter((checkIn) => {
+          const checkInDate = new Date(checkIn.checkInTime)
+          return !Number.isNaN(checkInDate.getTime()) && checkInDate >= threeDaysAgo
+        })
+        .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
+    }
+
+    const directCheckIns = (data || []).map(rowToCheckIn)
+    if (directCheckIns.length > 0) return directCheckIns
+
+    const { data: studentRows } = await supabase
+      .from('students')
+      .select('id, data')
+
+    return (studentRows || [])
+      .map(rowToStudent)
+      .flatMap((student) => checkInsFromStudents([student]))
+      .filter((checkIn) => {
+        const checkInDate = new Date(checkIn.checkInTime)
+        return !Number.isNaN(checkInDate.getTime()) && checkInDate >= threeDaysAgo
+      })
+      .sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime())
   }
 
   const checkIns = await readJsonFile<CheckIn>(checkinsFile)
@@ -226,21 +371,68 @@ export async function listRecentCheckIns() {
 }
 
 export async function saveCheckInRecord(checkIn: CheckIn) {
+  const nextCheckIn = normalizeCheckIn(checkIn)
   const supabase = getSupabaseServerClient()
 
   if (supabase) {
-    const { error } = await supabase.from('checkins').upsert({
-      id: checkIn.id,
-      student_id: checkIn.studentId,
-      check_in_time: checkIn.checkInTime,
-      data: checkIn,
-    })
+    const canonicalRow = {
+      id: nextCheckIn.id,
+      student_id: nextCheckIn.studentId,
+      check_in_time: nextCheckIn.checkInTime,
+      data: nextCheckIn,
+    }
 
-    if (error) throw error
-    return checkIn
+    const { error } = await supabase.from('checkins').upsert(canonicalRow)
+    if (!error) return nextCheckIn
+
+    const legacyRow = {
+      id: nextCheckIn.id,
+      studentId: nextCheckIn.studentId,
+      studentName: nextCheckIn.studentName,
+      studentPhoto: nextCheckIn.studentPhoto,
+      beltRank: nextCheckIn.beltRank,
+      stripes: nextCheckIn.stripes,
+      membershipType: nextCheckIn.membershipType,
+      classId: nextCheckIn.classId,
+      className: nextCheckIn.className,
+      checkInTime: nextCheckIn.checkInTime,
+    }
+
+    const { error: legacyError } = await supabase.from('checkins').upsert(legacyRow)
+    if (legacyError) {
+      console.error('Erro ao salvar check-in no Supabase:', legacyError.message)
+    }
+
+    await saveCheckInOnStudent(nextCheckIn)
+    return nextCheckIn
   }
 
   const checkIns = await readJsonFile<CheckIn>(checkinsFile)
-  await writeJsonFile(checkinsFile, [...checkIns, checkIn])
-  return checkIn
+  await writeJsonFile(checkinsFile, [...checkIns, nextCheckIn])
+
+  const students = await readJsonFile<Student>(studentsFile)
+  const nextStudents = students.map((student) => {
+    if (student.id !== nextCheckIn.studentId) return student
+    const attendanceHistory = Array.isArray(student.attendanceHistory) ? student.attendanceHistory : []
+    if (attendanceHistory.some((record) => record.id === nextCheckIn.id)) return student
+    return {
+      ...student,
+      totalClasses: Number(student.totalClasses || 0) + 1,
+      attendanceHistory: [
+        ...attendanceHistory,
+        {
+          id: nextCheckIn.id,
+          studentId: nextCheckIn.studentId,
+          classId: nextCheckIn.classId || 'open-mat',
+          className: nextCheckIn.className || 'Open Mat',
+          checkInTime: nextCheckIn.checkInTime,
+          date: nextCheckIn.checkInTime.split('T')[0],
+        },
+      ],
+      updatedAt: new Date().toISOString(),
+    }
+  })
+  await writeJsonFile(studentsFile, nextStudents)
+
+  return nextCheckIn
 }

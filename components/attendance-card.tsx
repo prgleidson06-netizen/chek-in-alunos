@@ -10,11 +10,9 @@ interface AttendanceCardProps {
 
 export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
   const { t } = useApp()
-  
-  // Create a 10x8 grid (80 classes total per card)
   const totalCells = 80
   const attendedClasses = student.totalClasses % totalCells
-  
+
   const handlePrint = () => {
     if (onPrint) onPrint()
     window.print()
@@ -22,7 +20,6 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
 
   return (
     <div className="bg-white text-gray-900 rounded-lg overflow-hidden print:shadow-none" id="attendance-card">
-      {/* Card Header */}
       <div className="bg-[#1a1f3c] text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src="/images/fju-logo.png" alt="FJU" className="h-10" />
@@ -37,10 +34,8 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
         </div>
       </div>
 
-      {/* Card Body */}
       <div className="p-4 relative">
-        {/* Watermark */}
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5"
           style={{
             backgroundImage: 'url(/images/fju-badge.jpg)',
@@ -49,8 +44,7 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
             backgroundRepeat: 'no-repeat',
           }}
         />
-        
-        {/* Student Info Row */}
+
         <div className="flex items-center gap-4 mb-4 pb-4 border-b relative z-10">
           <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
             {student.photo ? (
@@ -61,6 +55,7 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
               </div>
             )}
           </div>
+
           <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
             <div>
               <p className="text-gray-500 text-xs">{t.belt}</p>
@@ -77,7 +72,6 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
           </div>
         </div>
 
-        {/* Attendance Grid */}
         <div className="grid grid-cols-10 gap-1 relative z-10">
           {Array.from({ length: totalCells }).map((_, index) => {
             const isAttended = index < attendedClasses
@@ -96,7 +90,6 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
           })}
         </div>
 
-        {/* FJU Badge Stamps */}
         <div className="flex justify-between mt-4 relative z-10">
           <img src="/images/fju-badge.jpg" alt="FJU" className="h-12 opacity-60" />
           <div className="text-center">
@@ -107,7 +100,6 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
         </div>
       </div>
 
-      {/* Print Button */}
       <div className="p-4 border-t bg-gray-50 print:hidden">
         <button
           onClick={handlePrint}
@@ -120,7 +112,6 @@ export function AttendanceCard({ student, onPrint }: AttendanceCardProps) {
   )
 }
 
-// Mini version for display in student list
 export function AttendanceCardMini({ student }: { student: Student }) {
   const totalCells = 80
   const attendedClasses = student.totalClasses % totalCells
@@ -133,7 +124,7 @@ export function AttendanceCardMini({ student }: { student: Student }) {
         <span className="text-xs font-medium">{attendedClasses}/{totalCells}</span>
       </div>
       <div className="h-2 bg-secondary rounded-full overflow-hidden">
-        <div 
+        <div
           className="h-full bg-primary transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
