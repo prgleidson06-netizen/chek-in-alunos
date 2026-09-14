@@ -101,7 +101,7 @@ function KioskApp() {
     setFilteredStudents(results)
   }
 
-  const handleCheckIn = async (student: Student) => {
+  const handleCheckIn = async (student: Student, program: 'bjj' | 'karate' = 'bjj') => {
     if (!isAdmin) {
       toast.error(t.adminRequiredForCheckIn)
       return
@@ -119,20 +119,37 @@ function KioskApp() {
       return
     }
 
+    const studentPhotoForCheckIn = student.id ? `/api/student-photo/${encodeURIComponent(student.id)}?v=${encodeURIComponent(student.updatedAt || student.createdAt || student.id)}` : '/images/fju-badge.jpg'
+    const previousStudents = students
+    const previousFilteredStudents = filteredStudents
+    const nextClassCount = (student.totalClasses || 0) + 1
+    const nextBjjClasses = Number(student.bjj?.classes ?? (student.programs?.bjj ? student.totalClasses || 0 : 0)) + (program === 'bjj' ? 1 : 0)
+    const nextKarateClasses = Number(student.karate?.classes ?? 0) + (program === 'karate' ? 1 : 0)
+    const checkedAt = now.toISOString()
+
     const checkIn: CheckIn = {
       id: `${student.id}-${Date.now()}`,
       studentId: student.id,
       studentName: `${student.firstName} ${student.lastName}`,
-      studentPhoto: student.photo || '/images/fju-badge.jpg',
+      studentPhoto: studentPhotoForCheckIn,
       beltRank: student.beltRank || 'white',
       stripes: student.stripes || 0,
       membershipType: student.membershipType || 'monthly',
       classId: 'open-mat',
-      className: 'Open Mat',
-      checkInTime: now.toISOString(),
+      className: program === 'karate' ? 'Karate' : 'Jiu-Jitsu',
+      checkInTime: checkedAt,
     }
 
     setCheckIns(prev => [...prev, checkIn])
+    const applyUpdatedStudent = (current: Student[]) => current.map((item) => item.id === student.id ? {
+      ...item,
+      totalClasses: nextClassCount,
+      bjj: item.bjj ? { ...item.bjj, classes: item.id === student.id ? nextBjjClasses : item.bjj.classes } : item.bjj,
+      karate: item.karate ? { ...item.karate, classes: item.id === student.id ? nextKarateClasses : item.karate.classes } : item.karate,
+      updatedAt: checkedAt,
+    } : item)
+    setStudents(applyUpdatedStudent)
+    setFilteredStudents(applyUpdatedStudent)
 
     try {
       const baseUrl = getBaseUrl()
@@ -149,8 +166,10 @@ function KioskApp() {
       
       const updatedStudent: Student = {
         ...student,
-        totalClasses: (student.totalClasses || 0) + 1,
-        updatedAt: now.toISOString(),
+        totalClasses: nextClassCount,
+        bjj: student.bjj ? { ...student.bjj, classes: nextBjjClasses } : student.bjj,
+        karate: student.karate ? { ...student.karate, classes: nextKarateClasses } : student.karate,
+        updatedAt: checkedAt,
       }
       
       const studentResponse = await fetch(`${baseUrl}/api/students`, {
@@ -169,8 +188,58 @@ function KioskApp() {
       toast.success(`Check-in realizado - ${student.firstName}`)
     } catch (err) {
       setCheckIns(prev => prev.filter(item => item.id !== checkIn.id))
+      setStudents(previousStudents)
+      setFilteredStudents(previousFilteredStudents)
       toast.error(t.checkInSaveError)
       loadAll()
+    }
+  }
+
+
+  const handleUpdateClasses = async (studentId: string, newCount: number, program: 'bjj' | 'karate' = 'bjj') => {
+    if (!isAdmin) {
+      toast.error(t.adminRequiredForCheckIn)
+      return
+    }
+
+    const selectedStudent = students.find((student) => student.id === studentId)
+    const selectedBjjClasses = Number(selectedStudent?.bjj?.classes ?? (selectedStudent?.programs?.bjj ? selectedStudent?.totalClasses || 0 : 0))
+    const selectedKarateClasses = Number(selectedStudent?.karate?.classes ?? 0)
+    const nextProgramCount = Math.max(0, Number(newCount) || 0)
+    const nextBjjClasses = program === 'bjj' ? nextProgramCount : selectedBjjClasses
+    const nextKarateClasses = program === 'karate' ? nextProgramCount : selectedKarateClasses
+    const totalClasses = nextBjjClasses + nextKarateClasses
+    const previousStudents = students
+    const previousFilteredStudents = filteredStudents
+    setStudents((current) => current.map((student) => student.id === studentId ? {
+      ...student,
+      totalClasses,
+      bjj: student.bjj ? { ...student.bjj, classes: nextBjjClasses } : student.bjj,
+      karate: student.karate ? { ...student.karate, classes: nextKarateClasses } : student.karate,
+      updatedAt: new Date().toISOString(),
+    } : student))
+    setFilteredStudents((current) => current.map((student) => student.id === studentId ? {
+      ...student,
+      totalClasses,
+      bjj: student.bjj ? { ...student.bjj, classes: nextBjjClasses } : student.bjj,
+      karate: student.karate ? { ...student.karate, classes: nextKarateClasses } : student.karate,
+      updatedAt: new Date().toISOString(),
+    } : student))
+
+    try {
+      const response = await fetch('/api/student-classes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId, totalClasses, bjjClasses: nextBjjClasses, karateClasses: nextKarateClasses }),
+      })
+      if (!response.ok) throw new Error('student-classes API returned an error')
+      toast.success('Numero de aulas atualizado.')
+      await loadAll()
+    } catch (error) {
+      setStudents(previousStudents)
+      setFilteredStudents(previousFilteredStudents)
+      toast.error('Nao foi possivel atualizar aulas.')
+      await loadAll()
     }
   }
 
@@ -184,13 +253,13 @@ function KioskApp() {
 
   const renderContent = () => {
     if (showStudentsList) {
-      return <StudentsList onBack={() => setShowStudentsList(false)} onCheckIn={handleCheckIn} />
+      return <StudentsList onBack={() => setShowStudentsList(false)} onCheckIn={handleCheckIn} onUpdateClasses={handleUpdateClasses} />
     }
     if (activeTab === 'MATRÍCULA') {
       return <EnrollmentForm onComplete={handleEnrollmentComplete} onCancel={() => setActiveTab('CHECK-IN')} />
     }
     if (activeTab === 'ALUNOS') {
-      return <StudentsList onBack={() => setActiveTab('CHECK-IN')} onCheckIn={handleCheckIn} />
+      return <StudentsList onBack={() => setActiveTab('CHECK-IN')} onCheckIn={handleCheckIn} onUpdateClasses={handleUpdateClasses} />
     }
     if (activeTab === 'ADMIN') {
       return <AdminPanel />
@@ -232,6 +301,7 @@ function KioskApp() {
           checkIns={checkIns} 
           onCheckIn={handleCheckIn} 
           onViewAll={() => setShowStudentsList(true)} 
+          onUpdateClasses={handleUpdateClasses}
         />
         <InfoBar />
       </>
@@ -242,7 +312,8 @@ function KioskApp() {
     <div className="app-watermark min-h-screen flex flex-col bg-background relative">
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-0 bg-[url('/images/fju-badge.jpg')] bg-center bg-no-repeat opacity-[0.07] grayscale-[15%] [background-size:min(62vw,560px)] max-sm:opacity-[0.055] max-sm:[background-size:82vw]"
+        className="pointer-events-none fixed inset-0 z-0 bg-center bg-no-repeat opacity-[0.07] grayscale-[15%] max-sm:opacity-[0.055]"
+        style={{ backgroundImage: "url('/images/fju-badge.jpg')", backgroundSize: 'min(62vw, 560px)' }}
       />
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 flex flex-col relative z-10">

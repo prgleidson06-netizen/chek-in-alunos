@@ -1,0 +1,77 @@
+COMO ADICIONAR OS VIDEOS DAS TECNICAS
+
+1. Abra o sistema e escolha a tecnica.
+2. Ao lado da aula, copie o nome de arquivo mostrado em "Como adicionar este video".
+3. Renomeie o seu video com esse nome, mantendo o formato MP4.
+4. Mova o arquivo para esta pasta "videos".
+5. Reabra o sistema e clique em "Abrir video".
+
+Para assistir sem mover o arquivo, use o botao "Video local" ou arraste o video
+para a tela preta. Nesse modo temporario, o navegador nao guarda o arquivo depois
+que a pagina for fechada. Para uso offline permanente, siga os cinco passos acima.
+
+NOMES ACEITOS PELO SISTEMA
+
+Faixa Branca
+- branca-aquecimento-e-movimentacao-solo.mp4
+- branca-defesa-de-abraco-por-tras.mp4
+- branca-hiza-guruma-no-joelho.mp4
+- branca-imobilizacao-lateral-100-kg.mp4
+- branca-americana-da-lateral.mp4
+- branca-upa-e-reposicao-de-guarda.mp4
+
+Faixa Cinza
+- cinza-queda-lateral-com-seguranca.mp4
+- cinza-controle-da-montada-infantil.mp4
+- cinza-saida-da-montada-com-ponte.mp4
+- cinza-guarda-fechada-quebrar-postura.mp4
+- cinza-passagem-de-joelho-no-meio.mp4
+
+Faixa Amarela
+- amarela-raspagem-tesoura.mp4
+- amarela-armlock-da-guarda-fechada.mp4
+- amarela-passagem-toreando.mp4
+- amarela-reposicao-da-lateral-para-guarda.mp4
+- amarela-o-soto-gari.mp4
+
+Faixa Laranja
+- laranja-triangulo-da-guarda-fechada.mp4
+- laranja-kimura-da-guarda-fechada.mp4
+- laranja-joelho-na-barriga.mp4
+- laranja-passagem-empilhando.mp4
+
+Faixa Verde
+- verde-de-la-riva-basica.mp4
+- verde-raspagem-da-de-la-riva.mp4
+- verde-omoplata-da-guarda.mp4
+- verde-tai-otoshi.mp4
+
+Faixa Azul
+- azul-entrada-de-baiana-simples.mp4
+- azul-armlock-da-montada.mp4
+- azul-guarda-laco-para-raspagem.mp4
+- azul-omoplata-do-laco.mp4
+- azul-saida-da-guarda-laco.mp4
+- azul-collar-drag.mp4
+
+Faixa Roxa
+- roxa-triangulo-da-guarda-fechada.mp4
+- roxa-controle-das-costas-e-mata-leao.mp4
+- roxa-meia-guarda-profunda.mp4
+- roxa-passagem-leg-drag.mp4
+- roxa-estrangulamento-arco-e-flecha.mp4
+
+Faixa Marrom
+- marrom-berimbolo-para-costas.mp4
+- marrom-passagem-over-under.mp4
+- marrom-katagatame-da-lateral.mp4
+- marrom-x-guard-para-raspagem.mp4
+- marrom-ataque-das-costas-em-cadeia.mp4
+
+Faixa Preta
+- preta-sistema-de-passagem-contra-guarda-aberta.mp4
+- preta-sistema-de-ataque-das-costas.mp4
+- preta-defesa-e-contra-ataque-de-leg-lock.mp4
+- preta-controle-de-ritmo-em-sparring.mp4
+- preta-como-ensinar-uma-tecnica-em-etapas.mp4
+- preta-plano-de-graduacao-e-avaliacao.mp4

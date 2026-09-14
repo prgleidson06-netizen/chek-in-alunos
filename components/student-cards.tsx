@@ -4,20 +4,21 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Student, CheckIn } from '@/lib/database'
-import { Check, User, Plus, Minus } from 'lucide-react'
+import { Check, IdCard, User, Plus, Minus } from 'lucide-react'
 import { useApp } from '@/components/app-provider'
 
 interface RecentArrivalsProps {
   students: Student[]
   checkIns: CheckIn[]
-  onCheckIn: (student: Student) => void
+  onCheckIn: (student: Student, program?: 'bjj' | 'karate') => void
   onViewAll: () => void
-  onUpdateClasses?: (studentId: string, newCount: number) => void
+  onUpdateClasses?: (studentId: string, newCount: number, program?: 'bjj' | 'karate') => void
 }
 
 export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpdateClasses }: RecentArrivalsProps) {
   const { t } = useApp()
   const [filter, setFilter] = useState<'all'|'bjj'|'karate'>('all')
+  const [selectedProgramByStudent, setSelectedProgramByStudent] = useState<Record<string, 'bjj' | 'karate'>>({})
 
   // OTIMIZAÇÃO 1: Cria um Set de IDs com check-in hoje. Otimiza o tempo de busca de O(N) para O(1).
   const checkedInStudentIdsToday = useMemo(() => {
@@ -48,6 +49,13 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
   // Cache estático da imagem padrão para evitar requisições duplicadas
   const DEFAULT_BADGE = '/images/fju-badge.jpg'
 
+  function studentPhotoSrc(student: Student) {
+  const version = encodeURIComponent(student.updatedAt || student.createdAt || student.id || 'photo')
+  return student.id ? `/api/student-photo/${encodeURIComponent(student.id)}?v=${version}` : '/images/fju-badge.jpg'
+}
+  const openStudentId = (studentId: string) => {
+    window.open(`/id-card/${encodeURIComponent(studentId)}`, '_blank', 'noopener,noreferrer')
+  }
   // Evita o conflito de cliques e "ghost clicks" que travam navegadores móveis
   const handleTouchStart = (e: React.TouchEvent, callback: () => void) => {
     if (e.cancelable) {
@@ -105,7 +113,7 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {displayedStudents.map((student) => {
           const isCheckedIn = checkedInStudentIdsToday.has(student.id)
-          const studentPhoto = student.photo || DEFAULT_BADGE
+          const studentPhoto = studentPhotoSrc(student)
 
           const hasBjj = student.programs?.bjj ?? true
           const hasKarate = student.programs?.karate ?? false
@@ -117,6 +125,15 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
           const karateKyu = student.karate?.kyu || 10
 
           const totalAulas = student.totalClasses ?? 0 
+          const bjjAulas = student.bjj?.classes ?? (hasBjj ? totalAulas : 0)
+          const karateAulas = student.karate?.classes ?? 0
+          const selectedProgram = selectedProgramByStudent[student.id] || (filter === 'karate' && hasKarate ? 'karate' : 'bjj')
+          const selectedAulas = selectedProgram === 'karate' ? karateAulas : bjjAulas
+          const aulasText = hasBjj && hasKarate
+            ? `Jiu-Jitsu ${bjjAulas}\nKarate ${karateAulas}`
+            : hasKarate
+              ? `Karate ${karateAulas || totalAulas}`
+              : `Jiu-Jitsu ${bjjAulas || totalAulas}`
 
           return (
             <Card 
@@ -146,6 +163,9 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
 
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-zinc-100 truncate">{student.firstName} {student.lastName}</p>
+                    <p className="mt-1 font-mono text-[10px] text-zinc-500 truncate" title={student.id}>
+                      ID: {student.id}
+                    </p>
                     <p className="text-[11px] text-red-400 font-bold uppercase mt-0.5 tracking-wide">
                       {programText}
                     </p>
@@ -164,6 +184,28 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
                   </div>
                 </div>
 
+                <div className="rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">ID do Aluno</p>
+                      <p className="mt-1 truncate font-mono text-xs text-zinc-200" title={student.id}>{student.id}</p>
+                    </div>
+                    <div className="shrink-0 rounded-md bg-red-600/10 px-2 py-1 text-right">
+                      <p className="text-[9px] font-bold uppercase text-red-300">Aulas</p>
+                      <p className="font-mono text-sm font-black text-white">{totalAulas}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 whitespace-pre-line rounded-md border border-zinc-800 bg-black/30 px-2 py-1.5 text-[11px] font-bold leading-5 text-zinc-300">
+                    {aulasText}
+                  </p>
+                  {hasBjj && hasKarate ? (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={(e) => handleMouseClick(e, () => setSelectedProgramByStudent((current) => ({ ...current, [student.id]: 'bjj' })))} className={`rounded-md border px-2 py-1.5 text-[10px] font-black uppercase ${selectedProgram === 'bjj' ? 'border-red-500 bg-red-600 text-white' : 'border-zinc-800 bg-black/30 text-zinc-400'}`}>Jiu-Jitsu</button>
+                      <button type="button" onClick={(e) => handleMouseClick(e, () => setSelectedProgramByStudent((current) => ({ ...current, [student.id]: 'karate' })))} className={`rounded-md border px-2 py-1.5 text-[10px] font-black uppercase ${selectedProgram === 'karate' ? 'border-red-500 bg-red-600 text-white' : 'border-zinc-800 bg-black/30 text-zinc-400'}`}>Karate</button>
+                    </div>
+                  ) : null}
+                </div>
+
                 {/* BARRA INFERIOR DE COMPORTAMENTO REESTRUTURADA */}
                 <div className="flex items-center gap-2 w-full pt-2 border-t border-zinc-800/60">
                   
@@ -171,9 +213,9 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
                   <div className="flex-1 flex items-center justify-between bg-zinc-950/50 p-1 rounded-xl border border-zinc-800 h-10 relative z-20">
                     <button
                       type="button"
-                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, Math.max(0, totalAulas - 1)))}
-                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, Math.max(0, totalAulas - 1)))}
-                      disabled={totalAulas <= 0}
+                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, Math.max(0, selectedAulas - 1), selectedProgram))}
+                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, Math.max(0, selectedAulas - 1), selectedProgram))}
+                      disabled={selectedAulas <= 0}
                       className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-20 transition-colors text-zinc-300 touch-none select-none"
                       title="Diminuir aula"
                     >
@@ -182,13 +224,13 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
                     
                     <div className="flex flex-col items-center justify-center min-w-[32px] select-none">
                       <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-tight block leading-none mb-0.5">{t.classes}</span>
-                      <span className="text-xs font-mono font-bold text-zinc-200 leading-none">{totalAulas}</span>
+                      <span className="text-xs font-mono font-bold text-zinc-200 leading-none">{selectedAulas}</span>
                     </div>
 
                     <button
                       type="button"
-                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, totalAulas + 1))}
-                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, totalAulas + 1))}
+                      onClick={(e) => handleMouseClick(e, () => onUpdateClasses?.(student.id, selectedAulas + 1, selectedProgram))}
+                      onTouchStart={(e) => handleTouchStart(e, () => onUpdateClasses?.(student.id, selectedAulas + 1, selectedProgram))}
                       className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors text-zinc-300 touch-none select-none"
                       title="Aumentar aula"
                     >
@@ -201,8 +243,8 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
                     size="sm"
                     variant={isCheckedIn ? 'default' : 'destructive'}
                     disabled={isCheckedIn}
-                    onClick={(e) => handleMouseClick(e, () => onCheckIn(student))}
-                    onTouchStart={(e) => handleTouchStart(e, () => !isCheckedIn && onCheckIn(student))}
+                    onClick={(e) => handleMouseClick(e, () => onCheckIn(student, selectedProgram))}
+                    onTouchStart={(e) => handleTouchStart(e, () => !isCheckedIn && onCheckIn(student, selectedProgram))}
                     className={`flex-1 rounded-xl font-bold text-xs h-10 px-2 transition-all duration-150 relative z-20 uppercase tracking-wider select-none ${
                       isCheckedIn 
                         ? 'bg-emerald-600 disabled:opacity-100 text-white cursor-default' 
@@ -216,6 +258,16 @@ export function RecentArrivals({ students, checkIns, onCheckIn, onViewAll, onUpd
                     )}
                   </Button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => handleMouseClick(e, () => openStudentId(student.id))}
+                  onTouchStart={(e) => handleTouchStart(e, () => openStudentId(student.id))}
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-black/40 text-xs font-black uppercase tracking-wide text-zinc-100 transition-colors hover:border-red-500 hover:text-white"
+                >
+                  <IdCard className="h-4 w-4 text-red-400" />
+                  Abrir ID do Aluno
+                </button>
 
               </CardContent>
             </Card>

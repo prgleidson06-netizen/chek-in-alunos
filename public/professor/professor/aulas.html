@@ -1,0 +1,2354 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FJU Professor Jiu-Jitsu - Sistema Offline</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b13;
+      --panel: #111827;
+      --panel-2: #172033;
+      --panel-3: #202a3f;
+      --line: #344055;
+      --text: #f5f7fb;
+      --muted: #aeb8cb;
+      --blue: #1f5fbf;
+      --blue-2: #79a9ff;
+      --red: #dc1028;
+      --green: #26c281;
+      --yellow: #f7c948;
+      --white: #ffffff;
+      --shadow: 0 20px 60px rgba(0, 0, 0, .35);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(220, 16, 40, .18), transparent 22%),
+        radial-gradient(circle at 76% 12%, rgba(31, 95, 191, .28), transparent 32%),
+        var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: url("assets/fju-logo.jpg") center / min(52vw, 620px) no-repeat;
+      opacity: .035;
+      filter: grayscale(1);
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 410px;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      background: rgba(8, 11, 19, .88);
+      border-right: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .brand img {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--white);
+      border: 2px solid rgba(255, 255, 255, .78);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1.1;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .nav-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .language-select {
+      width: 100%;
+      min-height: 42px;
+      padding: 0 10px;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    .belt-filter {
+      display: grid;
+      gap: 8px;
+    }
+
+    .belt-filter button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 44px;
+      padding: 10px 12px;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      text-align: left;
+    }
+
+    .belt-filter button:hover,
+    .belt-filter button.active {
+      background: var(--panel-2);
+      border-color: var(--line);
+    }
+
+    .belt-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .42);
+      flex: 0 0 auto;
+    }
+
+    .side-footer {
+      margin-top: auto;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .06);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .main {
+      min-width: 0;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.08;
+    }
+
+    .title p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .search {
+      width: min(380px, 100%);
+      min-height: 46px;
+      padding: 0 14px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      padding: 15px;
+      min-height: 86px;
+      background: rgba(17, 24, 39, .86);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: var(--radius);
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 28px;
+    }
+
+    .lesson-layout {
+      display: grid;
+      grid-template-columns: 340px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, .92);
+      border: 1px solid rgba(255, 255, 255, .09);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .panel-head h2,
+    .panel-head h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .lesson-list {
+      display: grid;
+      max-height: calc(100vh - 255px);
+      overflow: auto;
+    }
+
+    .lesson-card {
+      padding: 14px 16px;
+      background: transparent;
+      border-bottom: 1px solid rgba(255, 255, 255, .07);
+      color: var(--text);
+      text-align: left;
+    }
+
+    .lesson-card:hover,
+    .lesson-card.active {
+      background: var(--panel-2);
+    }
+
+    .lesson-card h3 {
+      margin: 8px 0 6px;
+      font-size: 17px;
+    }
+
+    .lesson-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(121, 169, 255, .13);
+      color: #dbe7ff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chip.red {
+      background: rgba(220, 16, 40, .16);
+      color: #ffc4cb;
+    }
+
+    .detail {
+      padding: 18px;
+    }
+
+    .detail-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, .08);
+    }
+
+    .detail h2 {
+      margin: 8px 0 8px;
+      font-size: 30px;
+      line-height: 1.08;
+    }
+
+    .detail p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .primary-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 0 15px;
+      border-radius: var(--radius);
+      background: var(--red);
+      color: var(--white);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .ghost-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      background: var(--panel-3);
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .blocks {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .block {
+      padding: 14px;
+      background: rgba(255, 255, 255, .045);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: var(--radius);
+    }
+
+    .block h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .block ol,
+    .block ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .block li + li {
+      margin-top: 8px;
+    }
+
+    .progress-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .progress-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 0 10px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: var(--radius);
+    }
+
+    .progress-row input {
+      accent-color: var(--green);
+    }
+
+    .video-panel {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 18px;
+      background: rgba(10, 14, 24, .94);
+      border-left: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .video-box {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      background: #02040a;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .video-box.dragging {
+      border-color: var(--blue-2);
+      box-shadow: 0 0 0 3px rgba(121, 169, 255, .22);
+    }
+
+    .video-watermark {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      z-index: 2;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: .42;
+      pointer-events: none;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      background: #000;
+    }
+
+    .video-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      background:
+        linear-gradient(135deg, rgba(31, 95, 191, .22), transparent),
+        #050813;
+    }
+
+    .video-empty strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .video-meta {
+      padding: 14px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: var(--radius);
+    }
+
+    .video-meta h2 {
+      margin: 0 0 6px;
+      font-size: 21px;
+    }
+
+    .video-meta p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .video-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .file-label {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      background: var(--panel-3);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-weight: 800;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .file-label input {
+      display: none;
+    }
+
+    .note {
+      min-height: 112px;
+      resize: vertical;
+      width: 100%;
+      padding: 12px;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    .small-help {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .video-guide {
+      padding: 12px;
+      background: rgba(31, 95, 191, .10);
+      border: 1px solid rgba(121, 169, 255, .25);
+      border-radius: var(--radius);
+    }
+
+    .video-guide strong {
+      display: block;
+      margin-bottom: 7px;
+    }
+
+    .filename-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filename-row code {
+      min-width: 0;
+      padding: 9px;
+      overflow: hidden;
+      color: var(--blue-2);
+      background: rgba(0, 0, 0, .28);
+      border-radius: 4px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-action {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--panel-3);
+      border: 1px solid var(--line);
+      font-size: 18px;
+    }
+
+    .mobile-bar {
+      display: none;
+    }
+
+    @media (max-width: 1160px) {
+      .app {
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+
+      .video-panel {
+        grid-column: 1 / -1;
+        position: static;
+        height: auto;
+        border-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, .08);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+      }
+
+      .belt-filter {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .topbar,
+      .detail-hero {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .stats,
+      .lesson-layout,
+      .blocks {
+        grid-template-columns: 1fr;
+      }
+
+      .lesson-list {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .main,
+      .sidebar,
+      .video-panel {
+        padding: 14px;
+      }
+
+      .title h1,
+      .detail h2 {
+        font-size: 25px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .belt-filter {
+        grid-template-columns: 1fr;
+      }
+
+      .video-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand">
+        <img src="assets/fju-logo.jpg" alt="Logo FJU Martial Arts">
+        <div>
+          <strong>FJU Professor</strong>
+          <span data-i18n="offlineSystem">Sistema offline</span>
+        </div>
+      </div>
+
+      <div>
+        <p class="nav-title" data-i18n="languageLabel">Idioma</p>
+        <select class="language-select" id="languageSelect" aria-label="Idioma">
+          <option value="pt">Português</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+
+      <div>
+        <p class="nav-title" data-i18n="filterByBelt">Filtrar por faixa</p>
+        <nav class="belt-filter" id="beltFilter"></nav>
+      </div>
+
+      <div class="side-footer" data-i18n-html="sideFooter">
+        Coloque seus vídeos na pasta <strong>videos</strong>. A página abre offline e você pode carregar um vídeo local em qualquer técnica.
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="topbar">
+        <div class="title">
+          <h1 data-i18n="mainTitle">Aulas e técnicas do professor</h1>
+          <p data-i18n="mainSubtitle">Escolha a aula, revise os passos e toque o vídeo da técnica ao lado.</p>
+        </div>
+        <input class="search" id="searchInput" type="search" placeholder="Buscar técnica, posição ou faixa" data-i18n-placeholder="searchPlaceholder">
+      </section>
+
+      <section class="stats" aria-label="Resumo do currículo" data-i18n-aria="statsAria">
+        <div class="stat"><span data-i18n="readyLessons">Aulas prontas</span><strong id="statLessons">0</strong></div>
+        <div class="stat"><span data-i18n="techniques">Técnicas</span><strong id="statTechniques">0</strong></div>
+        <div class="stat"><span data-i18n="withVideo">Com vídeo</span><strong id="statVideos">0</strong></div>
+        <div class="stat"><span data-i18n="completed">Concluídas</span><strong id="statDone">0</strong></div>
+      </section>
+
+      <section class="lesson-layout">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 data-i18n="lessonPlan">Plano de aula</h2>
+            <span class="chip" id="resultCount">0 itens</span>
+          </div>
+          <div class="lesson-list" id="lessonList"></div>
+        </div>
+
+        <article class="panel detail" id="detailPanel"></article>
+      </section>
+    </main>
+
+    <aside class="video-panel" aria-label="Vídeo da técnica" data-i18n-aria="videoPanelAria">
+      <div class="video-box" id="videoDropZone">
+        <video id="techVideo" controls preload="metadata"></video>
+        <img class="video-watermark" src="assets/fju-logo.jpg" alt="" aria-hidden="true">
+        <div class="video-empty" id="videoEmpty">
+          <div>
+            <strong data-i18n="videoTitleEmpty">Vídeo da técnica</strong>
+            <span data-i18n="videoEmptyHelp">Selecione uma técnica e toque em “Abrir vídeo” ou carregue um arquivo local.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="video-meta">
+        <h2 id="videoTitle">Nenhuma técnica selecionada</h2>
+        <p id="videoDescription" data-i18n="videoDescriptionEmpty">O vídeo aparece aqui ao lado da aula para consulta rápida durante o treino.</p>
+      </div>
+
+      <div class="video-actions">
+        <button class="primary-action" id="openVideoButton" type="button">▶ <span data-i18n="openVideo">Abrir vídeo</span></button>
+        <label class="file-label">
+          + <span data-i18n="localVideo">Vídeo local</span>
+          <input id="localVideoInput" type="file" accept="video/*">
+        </label>
+      </div>
+
+      <div class="video-guide">
+        <strong data-i18n="videoGuideTitle">Como adicionar este vídeo</strong>
+        <div class="filename-row">
+          <code id="expectedFilename">selecione-uma-tecnica.mp4</code>
+          <button class="icon-action" id="copyFilenameButton" type="button" title="Copiar nome" data-i18n-title="copyFilename">⧉</button>
+        </div>
+        <p class="small-help" data-i18n="videoGuideHelp">Para ficar salvo definitivamente: renomeie seu vídeo com este nome e coloque-o na pasta videos. Para assistir agora, clique em “Vídeo local” ou arraste o arquivo sobre a tela preta.</p>
+      </div>
+
+      <textarea class="note" id="teacherNote" placeholder="Anotações rápidas do professor para esta técnica" data-i18n-placeholder="notePlaceholder"></textarea>
+      <p class="small-help" data-i18n="smallHelp">As anotações e técnicas concluídas ficam salvas neste navegador. Para trocar o vídeo fixo de uma técnica, use o mesmo nome indicado na pasta videos.</p>
+    </aside>
+  </div>
+
+  <script>
+    const techniques = [
+          [
+                "Branca",
+                "Fundamentos",
+                "Aquecimento e movimentação solo",
+                "Preparar o corpo para queda, guarda e fuga de quadril com segurança.",
+                [
+                      "Rolamento frontal e queda lateral controlada.",
+                      "Fuga de quadril para os dois lados.",
+                      "Ponte, giro de ombro e levantar em base técnica."
+                ],
+                [
+                      "Corrigir postura da cabeça.",
+                      "Evitar pressa nos alunos novos.",
+                      "Usar repetição curta com descanso rápido."
+                ],
+                [
+                      "solo",
+                      "mobilidade",
+                      "iniciante"
+                ],
+                "15 min"
+          ],
+          [
+                "Branca",
+                "Defesa pessoal",
+                "Defesa de abraço por trás",
+                "Ensinar base, quadril baixo e saída segura de agarramento.",
+                [
+                      "Abrir base e proteger o pescoço.",
+                      "Baixar o centro de gravidade e criar espaço com as mãos.",
+                      "Girar para o lado seguro e sair com distância."
+                ],
+                [
+                      "Treinar devagar no começo.",
+                      "Não usar impacto desnecessário.",
+                      "Trocar parceiros para variar altura e força."
+                ],
+                [
+                      "defesa pessoal",
+                      "base",
+                      "iniciante"
+                ],
+                "20 min"
+          ],
+          [
+                "Branca",
+                "Quedas",
+                "Hiza guruma no joelho",
+                "Apresentar desequilíbrio e entrada simples de queda com controle.",
+                [
+                      "Fazer pegada firme na gola e manga.",
+                      "Quebrar a postura puxando em diagonal.",
+                      "Bloquear o joelho e conduzir a queda."
+                ],
+                [
+                      "Manter coluna alinhada.",
+                      "Não chutar o joelho.",
+                      "Finalizar estabilizando no solo."
+                ],
+                [
+                      "queda",
+                      "judô",
+                      "controle"
+                ],
+                "20 min"
+          ],
+          [
+                "Branca",
+                "Controle",
+                "Imobilização lateral 100 kg",
+                "Ensinar pressão, controle de cabeça e troca de base na lateral.",
+                [
+                      "Peito colado e quadril baixo.",
+                      "Controlar cabeça e braço próximo.",
+                      "Trocar base sem perder pressão."
+                ],
+                [
+                      "Evitar apoiar peso nas mãos.",
+                      "Corrigir joelho longe do quadril.",
+                      "Pedir três segundos de estabilização."
+                ],
+                [
+                      "100kg",
+                      "controle",
+                      "pressão"
+                ],
+                "25 min"
+          ],
+          [
+                "Branca",
+                "Ataque",
+                "Americana da lateral",
+                "Finalizar com americana mantendo controle da posição.",
+                [
+                      "Isolar o braço em ângulo de noventa graus.",
+                      "Prender o punho no tatame.",
+                      "Passar a mão por baixo e levantar o cotovelo com cuidado."
+                ],
+                [
+                      "Finalização lenta.",
+                      "Punho sempre controlado.",
+                      "Parar assim que o aluno bater."
+                ],
+                [
+                      "americana",
+                      "lateral",
+                      "finalização"
+                ],
+                "25 min"
+          ],
+          [
+                "Branca",
+                "Montada",
+                "Upa e reposição de guarda",
+                "Ensinar defesa básica da montada para recuperar segurança.",
+                [
+                      "Prender braço e pé do mesmo lado.",
+                      "Fazer ponte forte olhando por cima do ombro.",
+                      "Entrar joelho e recuperar meia guarda ou guarda fechada."
+                ],
+                [
+                      "Não empurrar com braço esticado.",
+                      "Proteger pescoço antes de sair.",
+                      "Repetir para os dois lados."
+                ],
+                [
+                      "montada",
+                      "defesa",
+                      "guarda"
+                ],
+                "25 min"
+          ],
+          [
+                "Cinza",
+                "Infantil",
+                "Queda lateral com segurança",
+                "Construir confiança na queda e no contato com o tatame.",
+                [
+                      "Agachar antes de cair.",
+                      "Bater com o braço aberto no tatame.",
+                      "Levantar em base técnica."
+                ],
+                [
+                      "Manter queixo no peito.",
+                      "Usar colchonete se necessário.",
+                      "Repetir em ritmo de brincadeira controlada."
+                ],
+                [
+                      "infantil",
+                      "queda",
+                      "segurança"
+                ],
+                "15 min"
+          ],
+          [
+                "Cinza",
+                "Infantil",
+                "Controle da montada infantil",
+                "Ensinar equilíbrio por cima sem esmagar o parceiro.",
+                [
+                      "Joelhos no tatame e mãos abertas.",
+                      "Manter postura com peito alto.",
+                      "Trocar para montada baixa quando o parceiro empurrar."
+                ],
+                [
+                      "Não sentar no peito.",
+                      "Ensinar respeito ao parceiro.",
+                      "Usar contagem curta."
+                ],
+                [
+                      "infantil",
+                      "montada",
+                      "controle"
+                ],
+                "20 min"
+          ],
+          [
+                "Cinza",
+                "Infantil",
+                "Saída da montada com ponte",
+                "Defender a montada usando ponte, giro e proteção dos braços.",
+                [
+                      "Proteger o pescoço.",
+                      "Prender um braço do parceiro.",
+                      "Fazer ponte e girar para cima."
+                ],
+                [
+                      "Corrigir braço solto.",
+                      "Evitar rolar de barriga para baixo.",
+                      "Dar reforço positivo."
+                ],
+                [
+                      "infantil",
+                      "defesa",
+                      "ponte"
+                ],
+                "20 min"
+          ],
+          [
+                "Cinza",
+                "Guarda",
+                "Guarda fechada: quebrar postura",
+                "Mostrar como controlar distância e postura na guarda.",
+                [
+                      "Fechar pernas na cintura.",
+                      "Puxar manga e gola.",
+                      "Trazer o parceiro para perto com as pernas."
+                ],
+                [
+                      "Não puxar só com os braços.",
+                      "Manter cabeça protegida.",
+                      "Trocar pegadas."
+                ],
+                [
+                      "guarda fechada",
+                      "postura",
+                      "infantil"
+                ],
+                "20 min"
+          ],
+          [
+                "Cinza",
+                "Passagem",
+                "Passagem de joelho no meio",
+                "Ensinar uma passagem simples contra guarda fechada aberta.",
+                [
+                      "Abrir postura com joelhos firmes.",
+                      "Colocar joelho no meio.",
+                      "Deslizar para lateral e estabilizar."
+                ],
+                [
+                      "Não deixar braços no chão.",
+                      "Cabeça sempre alta.",
+                      "Finalizar em 100 kg."
+                ],
+                [
+                      "passagem",
+                      "joelho",
+                      "base"
+                ],
+                "20 min"
+          ],
+          [
+                "Amarela",
+                "Guarda",
+                "Raspagem tesoura",
+                "Aprender desequilíbrio clássico da guarda aberta.",
+                [
+                      "Controlar gola e manga.",
+                      "Colocar canela atravessada no peito.",
+                      "Cortar a base e subir acompanhando."
+                ],
+                [
+                      "Puxar antes de empurrar.",
+                      "Não deixar a perna baixa.",
+                      "Subir sem soltar pegadas."
+                ],
+                [
+                      "raspagem",
+                      "guarda",
+                      "tesoura"
+                ],
+                "25 min"
+          ],
+          [
+                "Amarela",
+                "Finalização",
+                "Armlock da guarda fechada",
+                "Finalizar da guarda fechada com ângulo e controle de postura.",
+                [
+                      "Quebrar a postura.",
+                      "Controlar o braço e subir o quadril.",
+                      "Girar o ângulo e passar a perna na cabeça."
+                ],
+                [
+                      "Polegar para cima.",
+                      "Apertar joelhos.",
+                      "Finalizar devagar."
+                ],
+                [
+                      "armlock",
+                      "guarda fechada",
+                      "finalização"
+                ],
+                "30 min"
+          ],
+          [
+                "Amarela",
+                "Passagem",
+                "Passagem toreando",
+                "Passar a guarda aberta controlando pernas e ângulo lateral.",
+                [
+                      "Controlar as duas canelas ou barras da calça.",
+                      "Dar passo lateral tirando o quadril da linha dos pés.",
+                      "Fixar o peito no adversário e estabilizar a lateral."
+                ],
+                [
+                      "Não cruzar os pés.",
+                      "Manter cotovelos perto do corpo.",
+                      "Repetir para direita e esquerda."
+                ],
+                [
+                      "passagem",
+                      "guarda aberta",
+                      "pressão"
+                ],
+                "25 min"
+          ],
+          [
+                "Amarela",
+                "Defesa",
+                "Reposição da lateral para guarda",
+                "Recuperar guarda quando preso na lateral.",
+                [
+                      "Criar moldura no pescoço e quadril.",
+                      "Fazer fuga de quadril.",
+                      "Entrar joelho por dentro e fechar guarda."
+                ],
+                [
+                      "Não empurrar com braço isolado.",
+                      "Proteger o pescoço.",
+                      "Usar movimento curto."
+                ],
+                [
+                      "reposição",
+                      "lateral",
+                      "guarda"
+                ],
+                "25 min"
+          ],
+          [
+                "Amarela",
+                "Quedas",
+                "O soto gari",
+                "Aplicar queda simples usando desequilíbrio para trás.",
+                [
+                      "Puxar a manga e empurrar a gola.",
+                      "Passar a perna por fora.",
+                      "Colher a perna e acompanhar ao solo."
+                ],
+                [
+                      "Treinar com queda controlada.",
+                      "Não girar joelho do parceiro.",
+                      "Manter pegada até estabilizar."
+                ],
+                [
+                      "queda",
+                      "o soto gari",
+                      "controle"
+                ],
+                "25 min"
+          ],
+          [
+                "Laranja",
+                "Guarda",
+                "Triângulo da guarda fechada",
+                "Criar ângulo e finalizar com triângulo sem força excessiva.",
+                [
+                      "Controlar manga e postura.",
+                      "Subir o quadril com uma perna no ombro.",
+                      "Cortar ângulo e fechar a trava."
+                ],
+                [
+                      "Ajustar antes de apertar.",
+                      "Não cruzar o pé errado.",
+                      "Ensinar saída preventiva."
+                ],
+                [
+                      "triângulo",
+                      "guarda fechada",
+                      "ângulo"
+                ],
+                "30 min"
+          ],
+          [
+                "Laranja",
+                "Ataque",
+                "Kimura da guarda fechada",
+                "Atacar ombro com controle de punho e giro de quadril.",
+                [
+                      "Quebrar postura e sentar para o lado.",
+                      "Controlar punho e passar a mão por cima.",
+                      "Girar quadril e finalizar com cuidado."
+                ],
+                [
+                      "Não puxar com tranco.",
+                      "Manter cotovelo junto ao corpo.",
+                      "Parar no limite do parceiro."
+                ],
+                [
+                      "kimura",
+                      "guarda",
+                      "ombro"
+                ],
+                "30 min"
+          ],
+          [
+                "Laranja",
+                "Controle",
+                "Joelho na barriga",
+                "Controlar transição da lateral para joelho na barriga.",
+                [
+                      "Controlar gola e manga.",
+                      "Subir joelho no abdômen com pé ativo.",
+                      "Alternar pressão e troca de lado."
+                ],
+                [
+                      "Peso controlado em crianças.",
+                      "Não apoiar no rosto.",
+                      "Manter base larga."
+                ],
+                [
+                      "joelho na barriga",
+                      "controle",
+                      "transição"
+                ],
+                "25 min"
+          ],
+          [
+                "Laranja",
+                "Passagem",
+                "Passagem empilhando",
+                "Passar guarda usando pressão controlada sobre o quadril.",
+                [
+                      "Controlar as pernas.",
+                      "Elevar quadril do adversário.",
+                      "Empilhar e caminhar para o lado."
+                ],
+                [
+                      "Não forçar cervical.",
+                      "Dar espaço para bater.",
+                      "Usar pressão progressiva."
+                ],
+                [
+                      "passagem",
+                      "empilhada",
+                      "pressão"
+                ],
+                "30 min"
+          ],
+          [
+                "Verde",
+                "Guarda",
+                "De la Riva básica",
+                "Introduzir gancho de De la Riva e controle de distância.",
+                [
+                      "Controlar tornozelo.",
+                      "Entrar gancho externo.",
+                      "Controlar manga ou gola para desequilibrar."
+                ],
+                [
+                      "Gancho ativo.",
+                      "Não deixar o joelho cair para dentro.",
+                      "Trabalhar os dois lados."
+                ],
+                [
+                      "de la riva",
+                      "guarda aberta",
+                      "gancho"
+                ],
+                "30 min"
+          ],
+          [
+                "Verde",
+                "Raspagem",
+                "Raspagem da De la Riva",
+                "Usar o gancho para desequilibrar e subir por cima.",
+                [
+                      "Gancho firme no tornozelo.",
+                      "Puxar manga cruzada.",
+                      "Estender a perna e sentar para subir."
+                ],
+                [
+                      "Não soltar pegada ao subir.",
+                      "Manter cabeça alta.",
+                      "Finalizar na lateral."
+                ],
+                [
+                      "raspagem",
+                      "de la riva",
+                      "guarda"
+                ],
+                "30 min"
+          ],
+          [
+                "Verde",
+                "Finalização",
+                "Omoplata da guarda",
+                "Atacar ombro a partir da guarda com giro de quadril.",
+                [
+                      "Controlar manga.",
+                      "Abrir ângulo e passar perna sobre ombro.",
+                      "Sentar, controlar cintura e finalizar."
+                ],
+                [
+                      "Não cair para trás.",
+                      "Controlar a rotação do parceiro.",
+                      "Finalizar sem torção brusca."
+                ],
+                [
+                      "omoplata",
+                      "guarda",
+                      "ombro"
+                ],
+                "30 min"
+          ],
+          [
+                "Verde",
+                "Quedas",
+                "Tai otoshi",
+                "Ensinar projeção com giro de corpo e bloqueio da perna.",
+                [
+                      "Quebrar postura em diagonal.",
+                      "Girar colocando o pé de bloqueio.",
+                      "Projetar com controle das pegadas."
+                ],
+                [
+                      "Sem travar joelho.",
+                      "Treinar entrada antes da queda.",
+                      "Acompanhar ao solo."
+                ],
+                [
+                      "queda",
+                      "tai otoshi",
+                      "judô"
+                ],
+                "30 min"
+          ],
+          [
+                "Azul",
+                "Quedas",
+                "Entrada de baiana simples",
+                "Ensinar entrada segura nas pernas com cabeça protegida e finalização no tatame.",
+                [
+                      "Quebrar a postura com pegada firme.",
+                      "Entrar com passo profundo e coluna alinhada.",
+                      "Fechar as mãos atrás das pernas e direcionar para o lado."
+                ],
+                [
+                      "Não deixar o aluno mergulhar a cabeça.",
+                      "Treinar primeiro sem resistência.",
+                      "Finalizar estabilizando por três segundos."
+                ],
+                [
+                      "queda",
+                      "base",
+                      "controle"
+                ],
+                "20 min"
+          ],
+          [
+                "Azul",
+                "Finalização",
+                "Armlock da montada",
+                "Isolar o braço, subir a montada e finalizar com controle antes da extensão.",
+                [
+                      "Subir a montada com joelhos fechados.",
+                      "Isolar o braço cruzando o peito do adversário.",
+                      "Girar para a montada técnica e sentar com calcanhares pesados.",
+                      "Finalizar devagar com polegar para cima."
+                ],
+                [
+                      "Ensinar a soltar ao bater.",
+                      "Priorizar controle antes da finalização.",
+                      "Mostrar defesa básica depois da mecânica."
+                ],
+                [
+                      "montada",
+                      "armlock",
+                      "controle"
+                ],
+                "30 min"
+          ],
+          [
+                "Azul",
+                "Guarda",
+                "Guarda laço para raspagem",
+                "Criar desequilíbrio com laço, controle de manga e rotação do quadril.",
+                [
+                      "Fazer o laço profundo com a perna ativa.",
+                      "Controlar a manga oposta e impedir postura.",
+                      "Pisar no quadril, girar e conduzir a queda.",
+                      "Subir mantendo pegada até estabilizar."
+                ],
+                [
+                      "Cuidar do joelho no giro.",
+                      "Evitar laço raso.",
+                      "Trabalhar reação do adversário em etapas."
+                ],
+                [
+                      "guarda laço",
+                      "raspagem",
+                      "manga"
+                ],
+                "35 min"
+          ],
+          [
+                "Azul",
+                "Guarda laço",
+                "Omoplata do laço",
+                "Atacar omoplata usando laço e controle de manga.",
+                [
+                      "Entrar no laço profundo.",
+                      "Puxar a manga para quebrar postura.",
+                      "Girar quadril e passar a perna sobre o ombro.",
+                      "Sentar e finalizar ou raspar."
+                ],
+                [
+                      "Cuidar da flexibilidade do aluno.",
+                      "Manter controle do punho.",
+                      "Mostrar opção de raspagem."
+                ],
+                [
+                      "guarda laço",
+                      "omoplata",
+                      "ataque"
+                ],
+                "35 min"
+          ],
+          [
+                "Azul",
+                "Passagem",
+                "Saída da guarda laço",
+                "Passar ou neutralizar a guarda laço com postura e direção correta.",
+                [
+                      "Posturar sem arrancar o braço.",
+                      "Girar o cotovelo para dentro.",
+                      "Controlar joelho e caminhar para a passagem."
+                ],
+                [
+                      "Não puxar contra o laço.",
+                      "Proteger o ombro.",
+                      "Passar com paciência."
+                ],
+                [
+                      "defesa",
+                      "guarda laço",
+                      "passagem"
+                ],
+                "30 min"
+          ],
+          [
+                "Azul",
+                "Em pé",
+                "Collar drag",
+                "Puxar a gola para entrada nas costas ou queda.",
+                [
+                      "Controlar gola cruzada.",
+                      "Dar passo para fora da base.",
+                      "Puxar em diagonal e acompanhar para as costas."
+                ],
+                [
+                      "Não puxar para baixo sem ângulo.",
+                      "Usar movimento de corpo inteiro.",
+                      "Finalizar com controle."
+                ],
+                [
+                      "queda",
+                      "collar drag",
+                      "costas"
+                ],
+                "25 min"
+          ],
+          [
+                "Roxa",
+                "Finalização",
+                "Triângulo da guarda fechada",
+                "Quebrar postura, criar ângulo e finalizar sem força excessiva.",
+                [
+                      "Controlar uma manga e puxar a postura.",
+                      "Subir o quadril e passar uma perna sobre o ombro.",
+                      "Cortar o ângulo segurando a canela.",
+                      "Fechar a trava e ajustar joelhos."
+                ],
+                [
+                      "Ensinar ajuste antes de apertar.",
+                      "Corrigir pé cruzado errado.",
+                      "Demonstrar saída preventiva."
+                ],
+                [
+                      "guarda fechada",
+                      "triângulo",
+                      "ângulo"
+                ],
+                "30 min"
+          ],
+          [
+                "Roxa",
+                "Controle",
+                "Controle das costas e mata-leão",
+                "Manter a posição das costas e atacar com segurança.",
+                [
+                      "Colocar ganchos com peito colado nas costas.",
+                      "Alternar cinto de segurança e controle de punho.",
+                      "Entrar no pescoço sem cruzar os pés.",
+                      "Finalizar com cotovelo alinhado ao queixo."
+                ],
+                [
+                      "Reforçar regra de bater.",
+                      "Não cruzar os pés.",
+                      "Treinar troca de lado quando o aluno escapa."
+                ],
+                [
+                      "costas",
+                      "controle",
+                      "estrangulamento"
+                ],
+                "35 min"
+          ],
+          [
+                "Roxa",
+                "Guarda",
+                "Meia guarda profunda",
+                "Entrar por baixo do quadril e criar desequilíbrio para raspagem.",
+                [
+                      "Proteger o braço de baixo.",
+                      "Entrar por baixo do quadril.",
+                      "Controlar perna e levantar com base."
+                ],
+                [
+                      "Não deixar crossface.",
+                      "Cabeça colada no quadril.",
+                      "Subir sem expor as costas."
+                ],
+                [
+                      "meia guarda",
+                      "raspagem",
+                      "profunda"
+                ],
+                "35 min"
+          ],
+          [
+                "Roxa",
+                "Passagem",
+                "Passagem leg drag",
+                "Arrastar a perna e controlar quadril para chegar na lateral ou costas.",
+                [
+                      "Controlar tornozelo e joelho.",
+                      "Arrastar a perna para o lado oposto.",
+                      "Fixar quadril e peito antes de avançar."
+                ],
+                [
+                      "Não soltar o quadril.",
+                      "Evitar deixar gancho voltar.",
+                      "Manter pressão progressiva."
+                ],
+                [
+                      "leg drag",
+                      "passagem",
+                      "controle"
+                ],
+                "35 min"
+          ],
+          [
+                "Roxa",
+                "Ataque",
+                "Estrangulamento arco e flecha",
+                "Finalizar das costas usando gola e controle de perna.",
+                [
+                      "Controlar gola profunda.",
+                      "Prender perna ou calça.",
+                      "Girar o corpo abrindo ângulo.",
+                      "Estender para finalizar."
+                ],
+                [
+                      "Gola bem ajustada antes de girar.",
+                      "Proteger a cervical do parceiro.",
+                      "Soltar ao sinal."
+                ],
+                [
+                      "costas",
+                      "gola",
+                      "estrangulamento"
+                ],
+                "35 min"
+          ],
+          [
+                "Marrom",
+                "Guarda",
+                "Berimbolo para costas",
+                "Usar inversão com controle de De la Riva para chegar às costas.",
+                [
+                      "Entrar no gancho e controlar faixa ou calça.",
+                      "Inverter mantendo joelhos próximos.",
+                      "Girar por baixo do quadril e conectar cinto de segurança."
+                ],
+                [
+                      "Aquecimento cervical antes.",
+                      "Não forçar aluno sem mobilidade.",
+                      "Ensinar rota curta primeiro."
+                ],
+                [
+                      "berimbolo",
+                      "de la riva",
+                      "costas"
+                ],
+                "40 min"
+          ],
+          [
+                "Marrom",
+                "Passagem",
+                "Passagem over-under",
+                "Passar meia guarda com pressão de ombro e controle de quadril.",
+                [
+                      "Entrar com um braço por baixo e outro por cima.",
+                      "Colar ombro no abdômen.",
+                      "Caminhar o quadril para liberar a perna."
+                ],
+                [
+                      "Cabeça sempre protegida.",
+                      "Pressão no quadril, não no pescoço.",
+                      "Estabilizar antes de avançar."
+                ],
+                [
+                      "over under",
+                      "passagem",
+                      "pressão"
+                ],
+                "40 min"
+          ],
+          [
+                "Marrom",
+                "Ataque",
+                "Katagatame da lateral",
+                "Finalizar com braço-triângulo a partir da lateral ou montada.",
+                [
+                      "Isolar braço contra o pescoço.",
+                      "Conectar pegada e baixar a cabeça.",
+                      "Passar para o lado correto e ajustar pressão."
+                ],
+                [
+                      "Evitar força no rosto.",
+                      "Ajustar ombro no pescoço.",
+                      "Dar tempo para o parceiro bater."
+                ],
+                [
+                      "katagatame",
+                      "lateral",
+                      "estrangulamento"
+                ],
+                "35 min"
+          ],
+          [
+                "Marrom",
+                "Guarda",
+                "X-guard para raspagem",
+                "Usar ganchos por baixo para tirar base e subir.",
+                [
+                      "Entrar embaixo do centro de gravidade.",
+                      "Colocar ganchos em X.",
+                      "Controlar perna e desequilibrar para trás.",
+                      "Subir mantendo a perna presa."
+                ],
+                [
+                      "Não ficar deitado sem ângulo.",
+                      "Cabeça protegida.",
+                      "Treinar transição da meia guarda."
+                ],
+                [
+                      "x guard",
+                      "raspagem",
+                      "guarda"
+                ],
+                "40 min"
+          ],
+          [
+                "Marrom",
+                "Sequência",
+                "Ataque das costas em cadeia",
+                "Conectar mata-leão, arco e flecha e transição de mount.",
+                [
+                      "Começar no cinto de segurança.",
+                      "Atacar punho para abrir pescoço.",
+                      "Alternar para gola quando defender o pescoço.",
+                      "Subir para montada se perder gancho."
+                ],
+                [
+                      "Ensinar leitura de defesa.",
+                      "Não insistir em ataque travado.",
+                      "Controlar antes de finalizar."
+                ],
+                [
+                      "costas",
+                      "cadeia",
+                      "finalização"
+                ],
+                "40 min"
+          ],
+          [
+                "Preta",
+                "Aula avançada",
+                "Sistema de passagem contra guarda aberta",
+                "Organizar leitura de guarda, distância e passagem em cadeia.",
+                [
+                      "Identificar tipo de guarda e pegadas dominantes.",
+                      "Quebrar pegadas antes de entrar.",
+                      "Escolher toreando, leg drag ou pressão conforme reação.",
+                      "Estabilizar por três segundos antes de progredir."
+                ],
+                [
+                      "Foco em tomada de decisão.",
+                      "Treinar cenários com resistência progressiva.",
+                      "Corrigir detalhes de peso e ângulo."
+                ],
+                [
+                      "sistema",
+                      "passagem",
+                      "avançado"
+                ],
+                "45 min"
+          ],
+          [
+                "Preta",
+                "Aula avançada",
+                "Sistema de ataque das costas",
+                "Construir sequência completa de controle, retenção e finalização.",
+                [
+                      "Ganhar costas com cinto de segurança.",
+                      "Controlar lado forte e lado fraco.",
+                      "Atacar pescoço, gola e transição para montada.",
+                      "Recompor ganchos a cada defesa."
+                ],
+                [
+                      "Priorizar retenção.",
+                      "Ensinar alternância de ataques.",
+                      "Usar rounds específicos."
+                ],
+                [
+                      "sistema",
+                      "costas",
+                      "finalização"
+                ],
+                "45 min"
+          ],
+          [
+                "Preta",
+                "Aula avançada",
+                "Defesa e contra-ataque de leg lock",
+                "Ensinar princípios de segurança, linha do joelho e contra-ataque.",
+                [
+                      "Reconhecer posição da linha do joelho.",
+                      "Esconder calcanhar e girar para o lado correto.",
+                      "Liberar joelho antes de atacar.",
+                      "Subir para controle ou contra-ataque."
+                ],
+                [
+                      "Atenção às regras da turma.",
+                      "Executar sem explosão.",
+                      "Parar ao menor sinal de perigo."
+                ],
+                [
+                      "leg lock",
+                      "defesa",
+                      "contra ataque"
+                ],
+                "45 min"
+          ],
+          [
+                "Preta",
+                "Aula avançada",
+                "Controle de ritmo em sparring",
+                "Ensinar gestão de energia, pressão e transições de alto nível.",
+                [
+                      "Definir objetivo do round.",
+                      "Alternar pressão e mobilidade.",
+                      "Atacar quando o adversário defender a transição anterior.",
+                      "Finalizar mantendo controle emocional."
+                ],
+                [
+                      "Orientar por cenários.",
+                      "Evitar excesso de força.",
+                      "Focar leitura técnica."
+                ],
+                [
+                      "sparring",
+                      "estratégia",
+                      "ritmo"
+                ],
+                "40 min"
+          ],
+          [
+                "Preta",
+                "Professor",
+                "Como ensinar uma técnica em etapas",
+                "Organizar demonstração, prática, correção e aplicação em luta.",
+                [
+                      "Mostrar a técnica inteira uma vez.",
+                      "Dividir em três partes claras.",
+                      "Corrigir um detalhe por rodada.",
+                      "Fechar com treino específico."
+                ],
+                [
+                      "Falar pouco e demonstrar bem.",
+                      "Escolher parceiros compatíveis.",
+                      "Dar variações só depois da base."
+                ],
+                [
+                      "didática",
+                      "professor",
+                      "aula"
+                ],
+                "35 min"
+          ],
+          [
+                "Preta",
+                "Professor",
+                "Plano de graduação e avaliação",
+                "Montar avaliação técnica por faixa com segurança e clareza.",
+                [
+                      "Separar técnicas obrigatórias por faixa.",
+                      "Avaliar postura, controle e segurança.",
+                      "Registrar pontos fortes e pontos a melhorar.",
+                      "Definir próxima meta do aluno."
+                ],
+                [
+                      "Não avaliar só finalização.",
+                      "Considerar comportamento e constância.",
+                      "Manter padrão justo."
+                ],
+                [
+                      "graduação",
+                      "avaliação",
+                      "professor"
+                ],
+                "35 min"
+          ]
+    ];
+
+    function slug(text) {
+      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+
+    const lessons = techniques.map(([belt, level, title, goal, steps, details, tags, duration]) => ({
+      id: slug(`${belt}-${title}`),
+      belt,
+      level,
+      title,
+      duration,
+      video: `videos/${slug(`${belt}-${title}`)}.mp4`,
+      goal,
+      tags,
+      steps,
+      details
+    }));
+
+    const beltColors = {
+      "Todas": "linear-gradient(90deg, #fff, #8c939d, #f7c948, #f58220, #1f9d55, #1f5fbf, #7a3db8, #7a4a2a, #05070c)",
+      "Branca": "#ffffff",
+      "Cinza": "#8c939d",
+      "Amarela": "#f7c948",
+      "Laranja": "#f58220",
+      "Verde": "#1f9d55",
+      "Azul": "#1f5fbf",
+      "Roxa": "#7a3db8",
+      "Marrom": "#7a4a2a",
+      "Preta": "#05070c"
+    };
+
+    const i18n = {
+      pt: {
+        htmlLang: "pt-BR",
+        offlineSystem: "Sistema offline",
+        languageLabel: "Idioma",
+        filterByBelt: "Filtrar por faixa",
+        sideFooter: 'Coloque seus vídeos na pasta <strong>videos</strong>. A página abre offline e você pode carregar um vídeo local em qualquer técnica.',
+        mainTitle: "Aulas e técnicas do professor",
+        mainSubtitle: "Escolha a aula, revise os passos e toque o vídeo da técnica ao lado.",
+        searchPlaceholder: "Buscar técnica, posição ou faixa",
+        statsAria: "Resumo do currículo",
+        readyLessons: "Aulas prontas",
+        techniques: "Técnicas",
+        withVideo: "Com vídeo",
+        completed: "Concluídas",
+        lessonPlan: "Plano de aula",
+        videoPanelAria: "Vídeo da técnica",
+        videoTitleEmpty: "Vídeo da técnica",
+        videoEmptyHelp: "Selecione uma técnica e toque em “Abrir vídeo” ou carregue um arquivo local.",
+        videoDescriptionEmpty: "O vídeo aparece aqui ao lado da aula para consulta rápida durante o treino.",
+        openVideo: "Abrir vídeo",
+        localVideo: "Vídeo local",
+        notePlaceholder: "Anotações rápidas do professor para esta técnica",
+        smallHelp: "As anotações e técnicas concluídas ficam salvas neste navegador. Para trocar o vídeo fixo de uma técnica, use o mesmo nome indicado na pasta videos.",
+        videoGuideTitle: "Como adicionar este vídeo",
+        videoGuideHelp: "Para ficar salvo definitivamente: renomeie seu vídeo com este nome e coloque-o na pasta videos. Para assistir agora, clique em “Vídeo local” ou arraste o arquivo sobre a tela preta.",
+        copyFilename: "Copiar nome do arquivo",
+        copiedFilename: "Nome copiado",
+        invalidVideo: "Escolha um arquivo de vídeo.",
+        items: "itens",
+        noTechnique: "Nenhuma técnica encontrada.",
+        doneChip: "Concluída",
+        sideVideoButton: "Vídeo ao lado",
+        classSequence: "Sequência da aula",
+        teacherCorrections: "Correções do professor",
+        doneToday: "Técnica concluída hoje",
+        noSelection: "Nenhuma técnica selecionada",
+        suggestedFile: "arquivo sugerido",
+        localLoaded: "vídeo local carregado",
+        videoMissingTitle: "Vídeo ainda não encontrado",
+        videoMissingHelp: "Coloque o arquivo indicado na pasta videos ou use “Vídeo local”.",
+        belts: {
+          "Todas": "Todas",
+          "Branca": "Branca",
+          "Cinza": "Cinza",
+          "Amarela": "Amarela",
+          "Laranja": "Laranja",
+          "Verde": "Verde",
+          "Azul": "Azul",
+          "Roxa": "Roxa",
+          "Marrom": "Marrom",
+          "Preta": "Preta"
+        },
+        levels: {
+          "Fundamentos": "Fundamentos",
+          "Defesa pessoal": "Defesa pessoal",
+          "Quedas": "Quedas",
+          "Controle": "Controle",
+          "Ataque": "Ataque",
+          "Montada": "Montada",
+          "Infantil": "Infantil",
+          "Guarda": "Guarda",
+          "Passagem": "Passagem",
+          "Finalização": "Finalização",
+          "Em pé": "Em pé",
+          "Guarda laço": "Guarda laço",
+          "Raspagem": "Raspagem",
+          "Aula avançada": "Aula avançada",
+          "Professor": "Professor",
+          "Sequência": "Sequência"
+        }
+      },
+      en: {
+        htmlLang: "en",
+        offlineSystem: "Offline system",
+        languageLabel: "Language",
+        filterByBelt: "Filter by belt",
+        sideFooter: 'Place your videos in the <strong>videos</strong> folder. The page works offline and you can load a local video for any technique.',
+        mainTitle: "Professor lessons and techniques",
+        mainSubtitle: "Choose a lesson, review the steps, and play the technique video beside it.",
+        searchPlaceholder: "Search technique, position, or belt",
+        statsAria: "Curriculum summary",
+        readyLessons: "Lesson groups",
+        techniques: "Techniques",
+        withVideo: "With video",
+        completed: "Completed",
+        lessonPlan: "Lesson plan",
+        videoPanelAria: "Technique video",
+        videoTitleEmpty: "Technique video",
+        videoEmptyHelp: "Select a technique and tap “Open video” or load a local file.",
+        videoDescriptionEmpty: "The video appears beside the lesson for quick use during class.",
+        openVideo: "Open video",
+        localVideo: "Local video",
+        notePlaceholder: "Quick instructor notes for this technique",
+        smallHelp: "Notes and completed techniques are saved in this browser. To replace a fixed video, use the file name shown in the videos folder.",
+        videoGuideTitle: "How to add this video",
+        videoGuideHelp: "To save it permanently: rename your video with this name and place it in the videos folder. To watch it now, click “Local video” or drag the file onto the black screen.",
+        copyFilename: "Copy file name",
+        copiedFilename: "Name copied",
+        invalidVideo: "Choose a video file.",
+        items: "items",
+        noTechnique: "No technique found.",
+        doneChip: "Completed",
+        sideVideoButton: "Video beside lesson",
+        classSequence: "Class sequence",
+        teacherCorrections: "Instructor corrections",
+        doneToday: "Technique completed today",
+        noSelection: "No technique selected",
+        suggestedFile: "suggested file",
+        localLoaded: "local video loaded",
+        videoMissingTitle: "Video not found yet",
+        videoMissingHelp: "Place the indicated file in the videos folder or use “Local video”.",
+        belts: {
+          "Todas": "All",
+          "Branca": "White",
+          "Cinza": "Gray",
+          "Amarela": "Yellow",
+          "Laranja": "Orange",
+          "Verde": "Green",
+          "Azul": "Blue",
+          "Roxa": "Purple",
+          "Marrom": "Brown",
+          "Preta": "Black"
+        },
+        levels: {
+          "Fundamentos": "Fundamentals",
+          "Defesa pessoal": "Self-defense",
+          "Quedas": "Takedowns",
+          "Controle": "Control",
+          "Ataque": "Attack",
+          "Montada": "Mount",
+          "Infantil": "Kids",
+          "Guarda": "Guard",
+          "Passagem": "Passing",
+          "Finalização": "Submission",
+          "Em pé": "Standing",
+          "Guarda laço": "Lasso guard",
+          "Raspagem": "Sweep",
+          "Aula avançada": "Advanced class",
+          "Professor": "Instructor",
+          "Sequência": "Sequence"
+        }
+      },
+      es: {
+        htmlLang: "es",
+        offlineSystem: "Sistema sin internet",
+        languageLabel: "Idioma",
+        filterByBelt: "Filtrar por cinturón",
+        sideFooter: 'Coloca tus videos en la carpeta <strong>videos</strong>. La página funciona sin internet y puedes cargar un video local en cualquier técnica.',
+        mainTitle: "Clases y técnicas del profesor",
+        mainSubtitle: "Elige la clase, revisa los pasos y reproduce el video de la técnica al lado.",
+        searchPlaceholder: "Buscar técnica, posición o cinturón",
+        statsAria: "Resumen del currículo",
+        readyLessons: "Clases listas",
+        techniques: "Técnicas",
+        withVideo: "Con video",
+        completed: "Completadas",
+        lessonPlan: "Plan de clase",
+        videoPanelAria: "Video de la técnica",
+        videoTitleEmpty: "Video de la técnica",
+        videoEmptyHelp: "Selecciona una técnica y toca “Abrir video” o carga un archivo local.",
+        videoDescriptionEmpty: "El video aparece al lado de la clase para consulta rápida durante el entrenamiento.",
+        openVideo: "Abrir video",
+        localVideo: "Video local",
+        notePlaceholder: "Notas rápidas del profesor para esta técnica",
+        smallHelp: "Las notas y técnicas completadas se guardan en este navegador. Para cambiar el video fijo, usa el nombre indicado en la carpeta videos.",
+        videoGuideTitle: "Cómo agregar este video",
+        videoGuideHelp: "Para guardarlo de forma permanente: cambia el nombre del video por este y colócalo en la carpeta videos. Para verlo ahora, haz clic en “Video local” o arrastra el archivo sobre la pantalla negra.",
+        copyFilename: "Copiar nombre del archivo",
+        copiedFilename: "Nombre copiado",
+        invalidVideo: "Elige un archivo de video.",
+        items: "elementos",
+        noTechnique: "No se encontró ninguna técnica.",
+        doneChip: "Completada",
+        sideVideoButton: "Video al lado",
+        classSequence: "Secuencia de clase",
+        teacherCorrections: "Correcciones del profesor",
+        doneToday: "Técnica completada hoy",
+        noSelection: "Ninguna técnica seleccionada",
+        suggestedFile: "archivo sugerido",
+        localLoaded: "video local cargado",
+        videoMissingTitle: "Video aún no encontrado",
+        videoMissingHelp: "Coloca el archivo indicado en la carpeta videos o usa “Video local”.",
+        belts: {
+          "Todas": "Todos",
+          "Branca": "Blanco",
+          "Cinza": "Gris",
+          "Amarela": "Amarillo",
+          "Laranja": "Naranja",
+          "Verde": "Verde",
+          "Azul": "Azul",
+          "Roxa": "Morado",
+          "Marrom": "Marrón",
+          "Preta": "Negro"
+        },
+        levels: {
+          "Fundamentos": "Fundamentos",
+          "Defesa pessoal": "Defensa personal",
+          "Quedas": "Derribos",
+          "Controle": "Control",
+          "Ataque": "Ataque",
+          "Montada": "Montada",
+          "Infantil": "Infantil",
+          "Guarda": "Guardia",
+          "Passagem": "Pasaje",
+          "Finalização": "Finalización",
+          "Em pé": "De pie",
+          "Guarda laço": "Guardia lazo",
+          "Raspagem": "Raspado",
+          "Aula avançada": "Clase avanzada",
+          "Professor": "Profesor",
+          "Sequência": "Secuencia"
+        }
+      }
+    };
+
+    const state = {
+      belt: "Todas",
+      query: "",
+      selectedId: lessons[0].id,
+      lang: localStorage.getItem("fjuLanguage") || "pt"
+    };
+
+    const beltFilter = document.getElementById("beltFilter");
+    const lessonList = document.getElementById("lessonList");
+    const detailPanel = document.getElementById("detailPanel");
+    const searchInput = document.getElementById("searchInput");
+    const techVideo = document.getElementById("techVideo");
+    const videoEmpty = document.getElementById("videoEmpty");
+    const videoTitle = document.getElementById("videoTitle");
+    const videoDescription = document.getElementById("videoDescription");
+    const openVideoButton = document.getElementById("openVideoButton");
+    const localVideoInput = document.getElementById("localVideoInput");
+    const teacherNote = document.getElementById("teacherNote");
+    const languageSelect = document.getElementById("languageSelect");
+    const videoDropZone = document.getElementById("videoDropZone");
+    const expectedFilename = document.getElementById("expectedFilename");
+    const copyFilenameButton = document.getElementById("copyFilenameButton");
+
+    function t(key) {
+      return i18n[state.lang]?.[key] || i18n.pt[key] || key;
+    }
+
+    function beltLabel(belt) {
+      return i18n[state.lang]?.belts?.[belt] || belt;
+    }
+
+    function levelLabel(level) {
+      return i18n[state.lang]?.levels?.[level] || level;
+    }
+
+    function applyLanguage() {
+      const dictionary = i18n[state.lang] || i18n.pt;
+      document.documentElement.lang = dictionary.htmlLang;
+      document.querySelectorAll("[data-i18n]").forEach((element) => {
+        element.textContent = t(element.dataset.i18n);
+      });
+      document.querySelectorAll("[data-i18n-html]").forEach((element) => {
+        element.innerHTML = t(element.dataset.i18nHtml);
+      });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+        element.placeholder = t(element.dataset.i18nPlaceholder);
+      });
+      document.querySelectorAll("[data-i18n-aria]").forEach((element) => {
+        element.setAttribute("aria-label", t(element.dataset.i18nAria));
+      });
+      document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+        element.title = t(element.dataset.i18nTitle);
+      });
+      languageSelect.value = state.lang;
+    }
+
+    function getSelectedLesson() {
+      return lessons.find((lesson) => lesson.id === state.selectedId) || lessons[0];
+    }
+
+    function getDoneIds() {
+      return JSON.parse(localStorage.getItem("fjuDoneLessons") || "[]");
+    }
+
+    function saveDoneIds(ids) {
+      localStorage.setItem("fjuDoneLessons", JSON.stringify(ids));
+    }
+
+    function getFilteredLessons() {
+      const text = state.query.trim().toLowerCase();
+      return lessons.filter((lesson) => {
+        const beltOk = state.belt === "Todas" || lesson.belt === state.belt;
+        const haystack = [
+          lesson.title,
+          lesson.belt,
+          beltLabel(lesson.belt),
+          lesson.level,
+          levelLabel(lesson.level),
+          lesson.goal,
+          ...lesson.tags
+        ].join(" ").toLowerCase();
+        return beltOk && (!text || haystack.includes(text));
+      });
+    }
+
+    function renderBelts() {
+      const belts = ["Todas", ...Array.from(new Set(lessons.map((lesson) => lesson.belt)))];
+      beltFilter.innerHTML = belts.map((belt) => `
+        <button type="button" class="${state.belt === belt ? "active" : ""}" data-belt="${belt}">
+          <span style="display:flex;align-items:center;gap:9px;">
+            <span class="belt-dot" style="background:${beltColors[belt] || "#888"}"></span>
+            ${beltLabel(belt)}
+          </span>
+          <span>${belt === "Todas" ? lessons.length : lessons.filter((lesson) => lesson.belt === belt).length}</span>
+        </button>
+      `).join("");
+    }
+
+    function renderStats() {
+      const done = getDoneIds();
+      document.getElementById("statLessons").textContent = new Set(lessons.map((lesson) => lesson.level)).size;
+      document.getElementById("statTechniques").textContent = lessons.length;
+      document.getElementById("statVideos").textContent = lessons.filter((lesson) => lesson.video).length;
+      document.getElementById("statDone").textContent = done.length;
+    }
+
+    function renderList() {
+      const filtered = getFilteredLessons();
+      document.getElementById("resultCount").textContent = `${filtered.length} ${t("items")}`;
+
+      if (!filtered.some((lesson) => lesson.id === state.selectedId) && filtered[0]) {
+        state.selectedId = filtered[0].id;
+      }
+
+      lessonList.innerHTML = filtered.map((lesson) => {
+        const done = getDoneIds().includes(lesson.id);
+        return `
+          <button type="button" class="lesson-card ${lesson.id === state.selectedId ? "active" : ""}" data-id="${lesson.id}">
+            <div class="chips">
+              <span class="chip">${beltLabel(lesson.belt)}</span>
+              <span class="chip red">${lesson.duration}</span>
+              ${done ? `<span class="chip">${t("doneChip")}</span>` : ""}
+            </div>
+            <h3>${lesson.title}</h3>
+            <p>${lesson.goal}</p>
+          </button>
+        `;
+      }).join("") || `<div style="padding:18px;color:var(--muted);">${t("noTechnique")}</div>`;
+    }
+
+    function renderDetail() {
+      const lesson = getSelectedLesson();
+      const done = getDoneIds().includes(lesson.id);
+
+      detailPanel.innerHTML = `
+        <div class="detail-hero">
+          <div>
+            <div class="chips">
+              <span class="chip">${beltLabel(lesson.belt)}</span>
+              <span class="chip">${levelLabel(lesson.level)}</span>
+              <span class="chip red">${lesson.duration}</span>
+            </div>
+            <h2>${lesson.title}</h2>
+            <p>${lesson.goal}</p>
+          </div>
+          <button class="primary-action" type="button" data-action="play">▶ ${t("sideVideoButton")}</button>
+        </div>
+
+        <div class="blocks">
+          <section class="block">
+            <h3>${t("classSequence")}</h3>
+            <ol>${lesson.steps.map((step) => `<li>${step}</li>`).join("")}</ol>
+          </section>
+          <section class="block">
+            <h3>${t("teacherCorrections")}</h3>
+            <ul>${lesson.details.map((item) => `<li>${item}</li>`).join("")}</ul>
+          </section>
+        </div>
+
+        <div class="progress-row">
+          <label><input type="checkbox" id="doneToggle" ${done ? "checked" : ""}> ${t("doneToday")}</label>
+          ${lesson.tags.map((tag) => `<span class="chip">${tag}</span>`).join("")}
+        </div>
+      `;
+
+      videoTitle.textContent = lesson.title;
+      videoDescription.textContent = `${beltLabel(lesson.belt)} • ${levelLabel(lesson.level)} • ${t("suggestedFile")}: ${lesson.video}`;
+      expectedFilename.textContent = lesson.video.replace("videos/", "");
+      teacherNote.value = localStorage.getItem(`fjuNote:${lesson.id}`) || "";
+    }
+
+    function loadVideo(lesson, autoplay = true) {
+      if (!lesson.video) return;
+      techVideo.src = lesson.video;
+      techVideo.load();
+      videoEmpty.style.display = "none";
+      if (autoplay) {
+        techVideo.play().catch(() => {});
+      }
+    }
+
+    function renderAll() {
+      applyLanguage();
+      renderBelts();
+      renderStats();
+      renderList();
+      renderDetail();
+    }
+
+    beltFilter.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-belt]");
+      if (!button) return;
+      state.belt = button.dataset.belt;
+      renderAll();
+    });
+
+    lessonList.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-id]");
+      if (!button) return;
+      state.selectedId = button.dataset.id;
+      renderAll();
+    });
+
+    detailPanel.addEventListener("click", (event) => {
+      if (event.target.matches("[data-action='play']")) {
+        loadVideo(getSelectedLesson());
+      }
+    });
+
+    detailPanel.addEventListener("change", (event) => {
+      if (event.target.id !== "doneToggle") return;
+      const done = new Set(getDoneIds());
+      if (event.target.checked) done.add(state.selectedId);
+      else done.delete(state.selectedId);
+      saveDoneIds(Array.from(done));
+      renderAll();
+    });
+
+    searchInput.addEventListener("input", (event) => {
+      state.query = event.target.value;
+      renderAll();
+    });
+
+    languageSelect.addEventListener("change", (event) => {
+      state.lang = event.target.value;
+      localStorage.setItem("fjuLanguage", state.lang);
+      renderAll();
+    });
+
+    openVideoButton.addEventListener("click", () => {
+      loadVideo(getSelectedLesson());
+    });
+
+    function loadLocalVideo(file) {
+      if (!file) return;
+      if (!file.type.startsWith("video/")) {
+        alert(t("invalidVideo"));
+        return;
+      }
+      techVideo.src = URL.createObjectURL(file);
+      techVideo.load();
+      videoEmpty.style.display = "none";
+      techVideo.play().catch(() => {});
+      videoDescription.textContent = `${beltLabel(getSelectedLesson().belt)} • ${t("localLoaded")}: ${file.name}`;
+    }
+
+    localVideoInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      loadLocalVideo(file);
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      videoDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        videoDropZone.classList.add("dragging");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      videoDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        videoDropZone.classList.remove("dragging");
+      });
+    });
+
+    videoDropZone.addEventListener("drop", (event) => {
+      loadLocalVideo(event.dataTransfer.files[0]);
+    });
+
+    copyFilenameButton.addEventListener("click", async () => {
+      const fileName = expectedFilename.textContent;
+      try {
+        await navigator.clipboard.writeText(fileName);
+      } catch (_) {
+        const range = document.createRange();
+        range.selectNodeContents(expectedFilename);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      copyFilenameButton.title = t("copiedFilename");
+      copyFilenameButton.textContent = "✓";
+      setTimeout(() => {
+        copyFilenameButton.title = t("copyFilename");
+        copyFilenameButton.textContent = "⧉";
+      }, 1600);
+    });
+
+    teacherNote.addEventListener("input", () => {
+      localStorage.setItem(`fjuNote:${state.selectedId}`, teacherNote.value);
+    });
+
+    techVideo.addEventListener("error", () => {
+      videoEmpty.style.display = "grid";
+      videoEmpty.innerHTML = `
+        <div>
+          <strong>${t("videoMissingTitle")}</strong>
+          <span>${t("videoMissingHelp")}</span>
+        </div>
+      `;
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>

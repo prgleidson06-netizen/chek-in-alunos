@@ -128,6 +128,18 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
     return 'Jiu-Jitsu'
   }
 
+  const classBreakdown = (student: Student) => {
+    const hasBjj = student.programs?.bjj ?? true
+    const hasKarate = student.programs?.karate ?? false
+    const total = Number(student.totalClasses || 0)
+    const bjjClasses = Number(student.bjj?.classes ?? (hasBjj ? total : 0))
+    const karateClasses = Number(student.karate?.classes ?? 0)
+
+    if (hasBjj && hasKarate) return `Jiu-Jitsu ${bjjClasses} / Karate ${karateClasses}`
+    if (hasKarate) return `Karate ${karateClasses || total}`
+    return `Jiu-Jitsu ${bjjClasses || total}`
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       <div className="flex items-center gap-4 mb-6">
@@ -154,8 +166,8 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
             <CardContent className="p-4">
               <div className="flex items-start gap-4">
                 <div className="w-16 h-16 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
-                  {student.photo ? (
-                    <img src={student.photo} alt={student.firstName} className="w-full h-full object-cover" />
+                  {student.id ? (
+                    <img src={`/api/student-photo/${encodeURIComponent(student.id)}?v=${encodeURIComponent(student.updatedAt || student.createdAt || student.id)}`} alt={student.firstName} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/fju-badge.jpg' }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xl font-bold text-muted-foreground">
                       {student.firstName?.[0]}{student.lastName?.[0]}
@@ -165,6 +177,9 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold truncate">{student.firstName} {student.lastName}</h3>
+                  <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground" title={student.id}>
+                    ID: {student.id}
+                  </p>
 
                   <p className="text-xs text-primary font-semibold mt-1">
                     {programLabel(student)}
@@ -185,6 +200,9 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
                   </div>
 
                   <p className="text-xs text-muted-foreground mt-1">{t[student.membershipType]}</p>
+                  <p className="mt-2 rounded border border-border/70 px-2 py-1 text-xs font-semibold text-muted-foreground">
+                    Aulas: {classBreakdown(student)}
+                  </p>
                 </div>
               </div>
 
@@ -198,6 +216,11 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
                   <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => setSelectedStudent(student)}>
                     <IdCard className="w-4 h-4 mr-1" />
                     Cartão de Frequência
+                  </Button>
+
+                  <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => window.open(`/id-card/${encodeURIComponent(student.id)}`, '_blank', 'noopener,noreferrer')}>
+                    <IdCard className="w-4 h-4 mr-1" />
+                    ID do Aluno
                   </Button>
 
                   <Button variant="outline" size="sm" className="p-2" title="Imprimir ficha completa" onClick={() => printStudentPdf(student)}>
@@ -214,10 +237,11 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
                   <div className="flex-1 flex items-center justify-between bg-zinc-800 p-1 rounded-md border border-zinc-700 h-10 select-none">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const current = student.totalClasses || 0;
                         if (current > 0 && onUpdateClasses) {
-                          onUpdateClasses(student.id, current - 1);
+                          await onUpdateClasses(student.id, current - 1);
+                          loadStudents();
                         }
                       }}
                       disabled={(student.totalClasses || 0) <= 0}
@@ -233,10 +257,11 @@ export function StudentsList({ onBack, onCheckIn, onUpdateClasses }: StudentsLis
 
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const current = student.totalClasses || 0;
                         if (onUpdateClasses) {
-                          onUpdateClasses(student.id, current + 1);
+                          await onUpdateClasses(student.id, current + 1);
+                          loadStudents();
                         }
                       }}
                       className="w-8 h-8 rounded bg-zinc-700 hover:bg-zinc-600 flex items-center justify-center text-white font-bold"

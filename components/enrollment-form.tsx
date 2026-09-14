@@ -186,7 +186,8 @@ export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/st
       })
 
       if (!res.ok) {
-        setError('Erro ao salvar matrícula. Tente novamente.')
+        const data = await res.json().catch(() => ({}))
+        setError(data?.error || 'Erro ao salvar matricula. Tente novamente.')
         return
       }
 

@@ -28,6 +28,7 @@ export interface CheckIn {
   beltRank: string
   stripes: number
   membershipType: string
+  status?: string
   classId: string
   className: string
   checkInTime: string
@@ -75,6 +76,7 @@ export interface Student {
   medications: string
   photo: string
   membershipType: 'monthly' | 'quarterly' | 'annual' | 'trial'
+  status?: string
   beltRank: 'white' | 'blue' | 'purple' | 'brown' | 'black'
   stripes: number
   startDate: string

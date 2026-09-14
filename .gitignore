@@ -7,3 +7,17 @@ node_modules
 data/*-backup-*.json
 data/*-auto-backup-*.json
 backups/
+.vercel
+node_modules
+.next
+backups
+local-backup
+v0-prgleidson06-9743-94fdbcb8
+data/backups
+data/students-*.json
+data/*backup*.json
+data/*corrompido*.json
+data/*vazio*.json
+tsconfig.tsbuildinfo
+.DS_Store
+.env*

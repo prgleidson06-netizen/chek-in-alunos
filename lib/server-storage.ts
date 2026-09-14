@@ -7,8 +7,20 @@ import type { CheckIn, Student } from '@/lib/database'
 const dataDir = path.join(process.cwd(), 'data')
 const studentsFile = path.join(dataDir, 'students.json')
 const checkinsFile = path.join(dataDir, 'checkins.json')
+const photoBucket = process.env.SUPABASE_PHOTO_BUCKET || 'student-photos'
+const storagePhotoPrefix = 'supabase-storage:'
 
 let cachedClient: SupabaseClient | null | undefined
+let photoBucketReady = false
+const signedPhotoCache = new Map<string, { value: string | null; expiresAt: number }>()
+
+function hasRealSupabaseServerConfig(url?: string, key?: string) {
+  if (!url || !key) return false
+  if (url.includes('seu-projeto.supabase.co')) return false
+  if (key.includes('sua-chave')) return false
+  if (!url.startsWith('https://')) return false
+  return true
+}
 
 function getSupabaseServerClient() {
   if (cachedClient !== undefined) return cachedClient
@@ -17,8 +29,8 @@ function getSupabaseServerClient() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   cachedClient =
-    supabaseUrl && serviceKey
-      ? createClient(supabaseUrl, serviceKey, {
+    hasRealSupabaseServerConfig(supabaseUrl, serviceKey)
+      ? createClient(supabaseUrl!, serviceKey!, {
           auth: {
             persistSession: false,
             autoRefreshToken: false,
@@ -63,50 +75,304 @@ function studentDuplicateKey(student: Pick<Student, 'firstName' | 'lastName' | '
 }
 
 function rowToStudent(row: any): Student {
+  const data = row.data && typeof row.data === 'object' ? row.data : row
+
   return {
-    ...(row.data || {}),
-    id: row.id,
+    ...data,
+    id: row.id || data.id,
+    firstName: data.firstName || row.firstName || row.first_name || '',
+    lastName: data.lastName || row.lastName || row.last_name || '',
+    dateOfBirth: data.dateOfBirth || row.dateOfBirth || row.date_of_birth || '',
+    email: data.email || row.email || '',
+    phone: data.phone || row.phone || '',
+    photo: imageApiPath(row.id || data.id, data.photo || data.photo_url || data.photoUrl || row.photo || row.photo_url || row.photoUrl || '', 'student-photo'),
   } as Student
+}
+
+function dataUrlToBytes(dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+  if (!match) return null
+
+  const [, contentType, base64] = match
+  const extension =
+    contentType === 'image/png'
+      ? 'png'
+      : contentType === 'image/webp'
+        ? 'webp'
+        : 'jpg'
+
+  return {
+    contentType,
+    extension,
+    bytes: Buffer.from(base64, 'base64'),
+  }
+}
+
+function storagePhotoRef(bucket: string, filePath: string) {
+  return `${storagePhotoPrefix}${bucket}/${filePath}`
+}
+
+function imageApiPath(id: string, image: string, endpoint: 'student-photo' | 'student-signature') {
+  if (!image) return '/images/fju-badge.jpg'
+  if (image.startsWith('data:image/') || image.startsWith(storagePhotoPrefix)) {
+    return `/api/${endpoint}/${encodeURIComponent(id)}`
+  }
+  return image
+}
+
+export function parseStoragePhotoRef(photo: string) {
+  if (!photo?.startsWith(storagePhotoPrefix)) return null
+
+  const value = photo.slice(storagePhotoPrefix.length)
+  const slashIndex = value.indexOf('/')
+  if (slashIndex <= 0) return null
+
+  return {
+    bucket: value.slice(0, slashIndex),
+    path: value.slice(slashIndex + 1),
+  }
+}
+
+
+export async function getSignedStoragePhotoUrlByOwnerId(ownerId: string) {
+  const supabase = getSupabaseServerClient()
+  if (!supabase || !ownerId) return null
+
+  const cacheKey = `owner:${ownerId}`
+  const cached = signedPhotoCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.value
+
+  const remember = (value: string | null) => {
+    signedPhotoCache.set(cacheKey, {
+      value,
+      expiresAt: Date.now() + (value ? 50 * 60 * 1000 : 5 * 60 * 1000),
+    })
+    return value
+  }
+
+  const safeOwnerId = ownerId.replace(/[^a-zA-Z0-9_-]/g, '-')
+  const ownerIds = Array.from(new Set([ownerId, safeOwnerId]))
+  const names = ['profile.jpg', 'profile.jpeg', 'profile.png', 'profile.webp', 'photo.jpg', 'photo.png']
+
+  for (const folder of ownerIds) {
+    for (const extension of ['jpg', 'jpeg', 'png', 'webp']) {
+      const directPaths = [
+        `${folder}.${extension}`,
+        `students/${folder}.${extension}`,
+        `students/${folder}/profile.${extension}`,
+        `students/${folder}/photo.${extension}`,
+      ]
+
+      for (const filePath of directPaths) {
+        const { data, error } = await supabase.storage.from(photoBucket).createSignedUrl(filePath, 60 * 60)
+        if (!error && data?.signedUrl) return remember(data.signedUrl)
+      }
+    }
+
+    for (const name of names) {
+      const filePath = `${folder}/${name}`
+      const { data, error } = await supabase.storage.from(photoBucket).createSignedUrl(filePath, 60 * 60)
+      if (!error && data?.signedUrl) return remember(data.signedUrl)
+    }
+
+    const { data: files } = await supabase.storage.from(photoBucket).list(folder, { limit: 20 })
+    const image = files?.find((file) => /\.(jpe?g|png|webp)$/i.test(file.name))
+    if (image?.name) {
+      const { data, error } = await supabase.storage.from(photoBucket).createSignedUrl(`${folder}/${image.name}`, 60 * 60)
+      if (!error && data?.signedUrl) return remember(data.signedUrl)
+    }
+  }
+
+  return remember(null)
+}
+
+export async function getSignedStoragePhotoUrl(photo: string) {
+  const supabase = getSupabaseServerClient()
+  const ref = parseStoragePhotoRef(photo)
+  if (!supabase || !ref) return null
+
+  const cacheKey = `ref:${ref.bucket}/${ref.path}`
+  const cached = signedPhotoCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.value
+
+  const { data, error } = await supabase.storage
+    .from(ref.bucket)
+    .createSignedUrl(ref.path, 60 * 60)
+
+  if (error) return null
+  const signedUrl = data?.signedUrl || null
+  signedPhotoCache.set(cacheKey, {
+    value: signedUrl,
+    expiresAt: Date.now() + (signedUrl ? 50 * 60 * 1000 : 5 * 60 * 1000),
+  })
+  return signedUrl
+}
+
+export async function getStudentRawImage(id: string, field: 'photo' | 'waiverSignature') {
+  const supabase = getSupabaseServerClient()
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (error) throw error
+    const payload = data?.data && typeof data.data === 'object' ? data.data : data
+    if (field === 'photo') {
+      const row = data as any
+      return payload?.photo || payload?.photo_url || payload?.photoUrl || row?.photo || row?.photo_url || row?.photoUrl || ''
+    }
+    return payload?.waiverSignature || payload?.waiver_signature || (data as any)?.waiver_signature || ''
+  }
+
+  const students = await readJsonFile<Student>(studentsFile)
+  const student = students.find((item) => item.id === id)
+  return field === 'photo' ? student?.photo || '' : student?.waiverSignature || ''
+}
+
+async function ensurePhotoBucket(supabase: SupabaseClient) {
+  if (photoBucketReady) return true
+
+  const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+  if (listError) return false
+
+  if (!buckets?.some((bucket) => bucket.name === photoBucket)) {
+    const { error: createError } = await supabase.storage.createBucket(photoBucket, {
+      public: false,
+      fileSizeLimit: 1024 * 1024,
+      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    })
+
+    if (createError) return false
+  }
+
+  photoBucketReady = true
+  return true
+}
+
+async function saveStudentPhoto(supabase: SupabaseClient, student: Student) {
+  if (!student.photo?.startsWith('data:image/')) return student.photo
+
+  const image = dataUrlToBytes(student.photo)
+  if (!image) return student.photo
+
+  const bucketReady = await ensurePhotoBucket(supabase)
+  if (!bucketReady) return student.photo
+
+  const safeStudentId = student.id.replace(/[^a-zA-Z0-9_-]/g, '-')
+  const filePath = `${safeStudentId}/profile.${image.extension}`
+  const { error } = await supabase.storage.from(photoBucket).upload(filePath, image.bytes, {
+    contentType: image.contentType,
+    upsert: true,
+  })
+
+  if (error) {
+    console.error('Erro ao salvar foto no Supabase Storage:', error.message)
+    return ''
+  }
+
+  return storagePhotoRef(photoBucket, filePath)
 }
 
 function rowToStudentSummary(row: any): Student {
+  const data = row.data && typeof row.data === 'object' ? row.data : row
+  const id = row.id || data.id
+  const override = row.classOverride && typeof row.classOverride === 'object' ? row.classOverride : null
+  const totalClasses = Number(
+    override?.totalClasses ?? row.total_classes ?? row.totalClasses ?? data.totalClasses ?? data.bjj?.classes ?? 0,
+  )
+  const hasBjj = data.programs?.bjj ?? data.bjj !== undefined ?? true
+  const hasKarate = data.programs?.karate ?? Boolean(data.karate)
+  const photo = data.photo || data.photo_url || data.photoUrl || row.photo || row.photo_url || row.photoUrl || ''
+
   return {
-    id: row.id,
-    firstName: row.first_name || '',
-    lastName: row.last_name || '',
-    dateOfBirth: row.date_of_birth || '',
-    email: row.email || '',
-    phone: row.phone || '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-    emergencyName: '',
-    emergencyPhone: '',
-    emergencyRelationship: '',
-    allergies: '',
-    medicalConditions: '',
-    medications: '',
-    photo: '/images/fju-badge.jpg',
-    membershipType: 'monthly',
-    beltRank: 'white',
-    stripes: 0,
-    startDate: '',
-    waiverSignature: '',
-    waiverSignedAt: '',
-    waiverAgreed: false,
-    totalClasses: 0,
-    attendanceHistory: [],
-    createdAt: '',
-    updatedAt: row.updated_at || '',
+    id,
+    firstName: data.firstName || row.firstName || row.first_name || '',
+    lastName: data.lastName || row.lastName || row.last_name || '',
+    dateOfBirth: data.dateOfBirth || row.dateOfBirth || row.date_of_birth || '',
+    email: data.email || row.email || '',
+    phone: data.phone || row.phone || '',
+    address: data.address || row.address || '',
+    city: data.city || row.city || '',
+    state: data.state || row.state || '',
+    zipCode: data.zipCode || row.zipCode || row.zip_code || '',
+    country: data.country || row.country || '',
+    emergencyName: data.emergencyName || row.emergencyName || row.emergency_name || '',
+    emergencyPhone: data.emergencyPhone || row.emergencyPhone || row.emergency_phone || '',
+    emergencyRelationship:
+      data.emergencyRelationship || row.emergencyRelationship || row.emergency_relationship || '',
+    allergies: data.allergies || row.allergies || '',
+    medicalConditions: data.medicalConditions || row.medicalConditions || row.medical_conditions || '',
+    medications: data.medications || row.medications || '',
+    photo: imageApiPath(id, photo, 'student-photo'),
+    membershipType: data.membershipType || row.membershipType || row.membership_type || 'monthly',
+    beltRank: data.beltRank || row.beltRank || row.belt_rank || data.bjj?.beltRank || 'white',
+    stripes: Number(data.stripes ?? row.stripes ?? data.bjj?.stripes ?? 0),
+    programs: { bjj: hasBjj, karate: hasKarate },
+    bjj: {
+      beltRank: data.bjj?.beltRank || data.beltRank || row.beltRank || row.belt_rank || 'white',
+      stripes: Number(data.bjj?.stripes ?? data.stripes ?? row.stripes ?? 0),
+      classes: Number(override?.bjjClasses ?? data.bjj?.classes ?? totalClasses),
+    },
+    karate: hasKarate
+      ? {
+          beltRank: data.karate?.beltRank || 'white',
+          kyu: Number(data.karate?.kyu || 10),
+          classes: Number(override?.karateClasses ?? data.karate?.classes ?? 0),
+        }
+      : undefined,
+    startDate: data.startDate || row.startDate || row.start_date || '',
+    waiverSignature: data.waiverSignature || row.waiverSignature || row.waiver_signature || '',
+    waiverSignedAt: data.waiverSignedAt || row.waiverSignedAt || row.waiver_signed_at || '',
+    waiverAgreed: Boolean(data.waiverAgreed ?? row.waiverAgreed ?? row.waiver_agreed ?? false),
+    totalClasses,
+    attendanceHistory: data.attendanceHistory || row.attendanceHistory || row.attendance_history || [],
+    createdAt: data.createdAt || row.createdAt || row.created_at || '',
+    updatedAt: data.updatedAt || row.updatedAt || row.updated_at || '',
   } as Student
 }
 
+async function localStudentCache() {
+  const students = await readJsonFile<Student>(studentsFile)
+  return new Map(students.map((student) => [student.id, student]))
+}
+
+async function classCountOverrides(supabase: SupabaseClient) {
+  const overrides = new Map<string, { totalClasses: number; bjjClasses?: number; karateClasses?: number }>()
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, data, updated_at')
+    .like('id', 'class-%')
+    .order('updated_at', { ascending: false })
+    .limit(1000)
+
+  if (error) return overrides
+
+  for (const row of data || []) {
+    const payload = row.data || {}
+    if (payload.kind !== 'class-count') continue
+    if (!payload.studentId || overrides.has(payload.studentId)) continue
+    overrides.set(payload.studentId, {
+      totalClasses: Number(payload.totalClasses || 0),
+      bjjClasses: payload.bjjClasses === undefined ? undefined : Number(payload.bjjClasses || 0),
+      karateClasses: payload.karateClasses === undefined ? undefined : Number(payload.karateClasses || 0),
+    })
+  }
+
+  return overrides
+}
+
 function rowToCheckIn(row: any): CheckIn {
+  const data = row.data || {}
+
   return {
-    ...(row.data || {}),
+    ...data,
     id: row.id,
+    studentId: data.studentId || row.student_id || row.studentId || '',
+    checkInTime: data.checkInTime || row.check_in_time || row.checkInTime || '',
   } as CheckIn
 }
 
@@ -155,9 +421,24 @@ async function saveCheckInOnStudent(checkIn: CheckIn) {
   if (attendanceHistory.some((record) => record.id === checkIn.id)) return
 
   const checkInTime = checkIn.checkInTime || new Date().toISOString()
+  const className = String(checkIn.className || '').toLowerCase()
+  const checkInProgram = String((checkIn as any).program || '').toLowerCase()
+  const hasBjj = Boolean(student.programs?.bjj ?? student.bjj)
+  const hasKarate = Boolean(student.programs?.karate ?? student.karate)
+  const program = checkInProgram === 'karate' || className.includes('karate') ? 'karate' : 'bjj'
+  const currentBjjClasses = Number(student.bjj?.classes ?? (hasBjj ? student.totalClasses || 0 : 0))
+  const currentKarateClasses = Number(student.karate?.classes ?? 0)
+  const nextBjjClasses = program === 'bjj' ? currentBjjClasses + 1 : currentBjjClasses
+  const nextKarateClasses = program === 'karate' ? currentKarateClasses + 1 : currentKarateClasses
+  const nextTotalClasses = hasBjj || hasKarate
+    ? nextBjjClasses + nextKarateClasses
+    : Math.max(Number(student.totalClasses || 0) + 1, 1)
+
   await saveStudentRecord({
     ...student,
-    totalClasses: Math.max(Number(student.totalClasses || 0) + 1, 1),
+    totalClasses: nextTotalClasses,
+    bjj: student.bjj ? { ...student.bjj, classes: nextBjjClasses } : student.bjj,
+    karate: student.karate ? { ...student.karate, classes: nextKarateClasses } : student.karate,
     attendanceHistory: [
       ...attendanceHistory,
       {
@@ -179,14 +460,158 @@ export async function listStudents() {
   if (supabase) {
     const { data, error } = await supabase
       .from('students')
-      .select('id, first_name, last_name, date_of_birth, email, phone, updated_at')
-      .order('first_name', { ascending: true })
+      .select('*')
+      .limit(10000)
 
     if (error) throw error
-    return (data || []).map(rowToStudentSummary)
+
+    const overrides = await classCountOverrides(supabase)
+
+    return (data || [])
+      .filter((row) => {
+        const id = String(row.id || '')
+        return !id.startsWith('class-') && !id.startsWith('teacher-')
+      })
+      .map((row) =>
+        rowToStudentSummary({
+          ...row,
+          classOverride: overrides.get(row.id),
+          total_classes: overrides.get(row.id)?.totalClasses,
+        }),
+      )
+      .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
   }
 
   return readJsonFile<Student>(studentsFile)
+}
+
+export async function listStudentsForReport() {
+  const supabase = getSupabaseServerClient()
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .limit(10000)
+
+    if (error) throw error
+
+    return (data || [])
+      .filter((row) => !String(row.id || '').startsWith('class-'))
+      .map((row) => {
+        const student = rowToStudent(row)
+        return {
+          ...rowToStudentSummary(row),
+          ...student,
+          id: row.id,
+          waiverSignature: '',
+        } as Student
+      })
+  }
+
+  return readJsonFile<Student>(studentsFile)
+}
+
+export async function listCheckInsForPeriod(startDate: Date, endDate: Date) {
+  const byId = new Map<string, CheckIn>()
+  const addCheckIn = (checkIn: CheckIn) => {
+    if (!checkIn.checkInTime) return
+    const checkInDate = new Date(checkIn.checkInTime)
+    if (Number.isNaN(checkInDate.getTime())) return
+    if (checkInDate < startDate || checkInDate > endDate) return
+    byId.set(checkIn.id || `${checkIn.studentId}-${checkIn.checkInTime}`, checkIn)
+  }
+
+  const supabase = getSupabaseServerClient()
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('checkins')
+      .select('id, student_id, check_in_time, data')
+      .gte('check_in_time', startDate.toISOString())
+      .lte('check_in_time', endDate.toISOString())
+      .order('check_in_time', { ascending: true })
+      .limit(10000)
+
+    if (!error) {
+      for (const row of data || []) addCheckIn(rowToCheckIn(row))
+    }
+
+    if (error || byId.size === 0) {
+      const { data: allCheckInRows, error: allCheckInError } = await supabase
+        .from('checkins')
+        .select('*')
+        .limit(10000)
+
+      if (!allCheckInError) {
+        for (const row of allCheckInRows || []) addCheckIn(rowToCheckIn(row))
+      }
+    }
+
+    const students = await listStudentsForReport()
+    for (const checkIn of checkInsFromStudents(students)) addCheckIn(checkIn)
+
+    return Array.from(byId.values()).sort(
+      (a, b) => new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime(),
+    )
+  }
+
+  const checkIns = await readJsonFile<CheckIn>(checkinsFile)
+  for (const checkIn of checkIns) addCheckIn(checkIn)
+
+  const students = await readJsonFile<Student>(studentsFile)
+  for (const checkIn of checkInsFromStudents(students)) addCheckIn(checkIn)
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.checkInTime).getTime() - new Date(b.checkInTime).getTime(),
+  )
+}
+
+export async function saveClassCountOverride(studentId: string, totalClasses: number, counts?: { bjjClasses?: number; karateClasses?: number }) {
+  const supabase = getSupabaseServerClient()
+  const nextCount = Math.max(0, totalClasses)
+  const now = new Date().toISOString()
+  const id = crypto.randomUUID()
+  const payload = {
+    id,
+    kind: 'class-count',
+    studentId,
+    totalClasses: nextCount,
+    bjjClasses: counts?.bjjClasses === undefined || Number.isNaN(Number(counts.bjjClasses)) ? undefined : Math.max(0, Number(counts.bjjClasses)),
+    karateClasses: counts?.karateClasses === undefined || Number.isNaN(Number(counts.karateClasses)) ? undefined : Math.max(0, Number(counts.karateClasses)),
+    checkInTime: now,
+  }
+
+  if (supabase) {
+    const { error } = await supabase.from('students').upsert({
+      id: `class-${studentId}`,
+      first_name: '__class_count__',
+      last_name: studentId,
+      data: payload,
+      updated_at: now,
+    })
+
+    if (error) throw error
+    return payload
+  }
+
+  const students = await readJsonFile<Student>(studentsFile)
+  await writeJsonFile(
+    studentsFile,
+    students.map((student) =>
+      student.id === studentId
+        ? {
+            ...student,
+            totalClasses: nextCount,
+            bjj: student.bjj ? { ...student.bjj, classes: counts?.bjjClasses ?? nextCount } : student.bjj,
+            karate: student.karate ? { ...student.karate, classes: counts?.karateClasses ?? student.karate.classes } : student.karate,
+            updatedAt: now,
+          }
+        : student,
+    ),
+  )
+
+  return payload
 }
 
 export async function getStudent(id: string) {
@@ -237,17 +662,19 @@ export async function saveStudentRecord(student: Student) {
     const mergedStudent = {
       ...(existingRow?.data || {}),
       ...nextStudent,
-      totalClasses: Math.max(
-        Number(nextStudent.totalClasses || 0),
-        Number(existingRow?.data?.totalClasses || 0),
-      ),
+      totalClasses:
+        typeof nextStudent.totalClasses === 'number'
+          ? Math.max(0, nextStudent.totalClasses)
+          : Number(existingRow?.data?.totalClasses || 0),
       attendanceHistory:
         nextStudent.attendanceHistory || existingRow?.data?.attendanceHistory || [],
       waiverSignature:
         nextStudent.waiverSignature || existingRow?.data?.waiverSignature || '',
       photo:
-        nextStudent.photo && nextStudent.photo !== '/images/fju-badge.jpg'
-          ? nextStudent.photo
+        nextStudent.photo &&
+        nextStudent.photo !== '/images/fju-badge.jpg' &&
+        !nextStudent.photo.startsWith('/api/student-photo/')
+          ? (await saveStudentPhoto(supabase, nextStudent)) || existingRow?.data?.photo || '/images/fju-badge.jpg'
           : existingRow?.data?.photo || nextStudent.photo || '/images/fju-badge.jpg',
       createdAt: nextStudent.createdAt || existingRow?.data?.createdAt || now,
       updatedAt: now,
@@ -383,7 +810,10 @@ export async function saveCheckInRecord(checkIn: CheckIn) {
     }
 
     const { error } = await supabase.from('checkins').upsert(canonicalRow)
-    if (!error) return nextCheckIn
+    if (!error) {
+      await saveCheckInOnStudent(nextCheckIn)
+      return nextCheckIn
+    }
 
     const legacyRow = {
       id: nextCheckIn.id,

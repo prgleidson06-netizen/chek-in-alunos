@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import fsSync from 'fs'
-import path from 'path'
-
-const filePath = path.join(process.cwd(), 'data', 'students.json')
+import type { Student } from '@/lib/database'
+import { hasDuplicateStudent, saveStudentRecord } from '@/lib/server-storage'
 
 function jsonHeaders() {
   return {
@@ -35,45 +32,18 @@ export async function POST(request: Request) {
       )
     }
 
-    const dirPath = path.dirname(filePath)
-    if (!fsSync.existsSync(dirPath)) {
-      await fs.mkdir(dirPath, { recursive: true })
-    }
-    if (!fsSync.existsSync(filePath)) {
-      await fs.writeFile(filePath, JSON.stringify([]))
-    }
-
-    const fileData = await fs.readFile(filePath, 'utf8')
-    const students = JSON.parse(fileData || '[]')
-    const currentStudents = Array.isArray(students) ? students : []
-
-    const newKey = `${student.firstName.trim().toLowerCase()}|${student.lastName.trim().toLowerCase()}|${student.dateOfBirth.trim()}`
-    const isDuplicate = currentStudents.some((item: any) => {
-      const currentKey = `${(item.firstName || '').trim().toLowerCase()}|${(item.lastName || '').trim().toLowerCase()}|${(item.dateOfBirth || '').trim()}`
-      return currentKey === newKey
-    })
-
-    if (isDuplicate) {
+    if (await hasDuplicateStudent(student as Student)) {
       return NextResponse.json(
         { error: 'Esta matricula ja existe no sistema.' },
         { status: 400, headers: jsonHeaders() },
       )
     }
 
-    const backupDir = path.join(process.cwd(), 'data', 'backups')
-    if (!fsSync.existsSync(backupDir)) {
-      await fs.mkdir(backupDir, { recursive: true })
-    }
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    await fs.writeFile(path.join(backupDir, `students-public-enrollment-${timestamp}.json`), fileData)
-
-    currentStudents.push({
+    await saveStudentRecord({
       ...student,
       createdAt: student.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    })
-
-    await fs.writeFile(filePath, JSON.stringify(currentStudents, null, 2))
+    } as Student)
 
     return NextResponse.json(
       { success: true, message: 'Matricula recebida com sucesso.' },
