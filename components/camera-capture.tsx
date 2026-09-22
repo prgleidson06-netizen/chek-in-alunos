@@ -19,7 +19,9 @@ function canvasToJpeg(canvas: HTMLCanvasElement) {
 }
 
 async function fileToCompressedDataUrl(file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) throw new Error('Please select an image file')
+  // Some Android document/camera providers omit the MIME type even for valid images.
+  // Let the browser decoder validate those files instead of rejecting them up front.
+  if (file.type && !file.type.startsWith('image/')) throw new Error('Please select an image file')
   if (file.size > MAX_INPUT_BYTES) throw new Error('Image size must be less than 12MB')
 
   const objectUrl = URL.createObjectURL(file)
@@ -96,12 +98,6 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
       })
       setStream(mediaStream)
       setIsCameraActive(true)
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play().then(() => setIsCameraReady(true)).catch(() => setError('Failed to start video preview'))
-        }
-      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       if (message.includes('Permission denied') || message.includes('NotAllowedError')) {
@@ -113,6 +109,35 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
       }
     }
   }, [t])
+
+  // The video element is rendered only after isCameraActive changes. Connecting
+  // the stream here avoids the render race that can leave Android stuck on
+  // "Starting camera..." with an empty videoRef.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!stream || !isCameraActive || !video) return
+
+    video.srcObject = stream
+    let cancelled = false
+
+    const startPreview = async () => {
+      try {
+        await video.play()
+        if (!cancelled) setIsCameraReady(true)
+      } catch {
+        if (!cancelled) setError('Não foi possível iniciar a câmera. Use Enviar foto como alternativa.')
+      }
+    }
+
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) void startPreview()
+    else video.onloadedmetadata = () => void startPreview()
+
+    return () => {
+      cancelled = true
+      video.onloadedmetadata = null
+      if (video.srcObject === stream) video.srcObject = null
+    }
+  }, [stream, isCameraActive])
 
   const capturePhoto = useCallback(() => {
     const video = videoRef.current
