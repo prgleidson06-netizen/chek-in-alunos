@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Award, BarChart3, Calendar, ClipboardCopy, Edit2, Mail, MapPin, Phone, Plus, Save, Trash2, Users, X } from 'lucide-react'
+import { Award, BarChart3, Calendar, ClipboardCopy, Edit2, Mail, MapPin, Phone, Plus, Save, Trash2, Upload, Users, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,32 @@ import {
 function studentPhotoSrc(student: Student) {
   const version = encodeURIComponent(student.updatedAt || student.createdAt || student.id || 'photo')
   return student.id ? `/api/student-photo/${encodeURIComponent(student.id)}?v=${version}` : '/images/fju-badge.jpg'
+}
+
+async function prepareStudentPhoto(file: File) {
+  if (file.type && !file.type.startsWith('image/')) throw new Error('Escolha um arquivo de imagem.')
+  if (file.size > 12 * 1024 * 1024) throw new Error('A foto deve ter no maximo 12 MB.')
+
+  const objectUrl = URL.createObjectURL(file)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const preview = new Image()
+      preview.onload = () => resolve(preview)
+      preview.onerror = () => reject(new Error('Nao foi possivel abrir essa foto.'))
+      preview.src = objectUrl
+    })
+    const longestSide = Math.max(image.naturalWidth, image.naturalHeight)
+    const scale = Math.min(1, 900 / longestSide)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Nao foi possivel preparar essa foto.')
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.78)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 type StudentDraft = Partial<Student> & Record<string, any>
@@ -416,6 +442,17 @@ export function AdminPanel() {
 
   const updateStudentField = (field: string, value: unknown) => {
     setStudentDraft((current) => current ? { ...current, [field]: value } : current)
+  }
+
+  const handleStudentPhotoChange = async (file: File | null) => {
+    if (!file) return
+
+    try {
+      updateStudentField('photo', await prepareStudentPhoto(file))
+      toast.success('Nova foto selecionada. Clique em Salvar aluno para confirmar.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Nao foi possivel carregar a foto.')
+    }
   }
 
   const updateStudentProgram = (field: 'bjj' | 'karate', value: boolean) => {
@@ -955,7 +992,31 @@ export function AdminPanel() {
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-red-400">Foto e termo</h3>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Textarea className="min-h-24" placeholder="Foto URL ou base64" value={studentDraft.photo || ''} onChange={(event) => updateStudentField('photo', event.target.value)} />
+                  <div className="flex items-center gap-4 rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+                    <img
+                      src={studentDraft.photo?.startsWith('data:image/') ? studentDraft.photo : studentPhotoSrc(studentDraft as Student)}
+                      alt={`Foto de ${getStudentName(studentDraft)}`}
+                      className="h-24 w-24 shrink-0 rounded-lg border border-zinc-700 object-cover"
+                      onError={(event) => { event.currentTarget.src = '/images/fju-badge.jpg' }}
+                    />
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-white">Foto do aluno</p>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700">
+                        <Upload className="h-4 w-4" />
+                        Escolher nova foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={(event) => {
+                            void handleStudentPhotoChange(event.target.files?.[0] || null)
+                            event.target.value = ''
+                          }}
+                        />
+                      </label>
+                      <p className="text-xs text-zinc-500">Depois clique em Salvar aluno.</p>
+                    </div>
+                  </div>
                   <Textarea className="min-h-24" placeholder="Assinatura URL ou base64" value={studentDraft.waiverSignature || ''} onChange={(event) => updateStudentField('waiverSignature', event.target.value)} />
                   <Input placeholder="Data da assinatura" value={studentDraft.waiverSignedAt || ''} onChange={(event) => updateStudentField('waiverSignedAt', event.target.value)} />
                   <label className="flex items-center gap-3 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
