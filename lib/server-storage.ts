@@ -262,9 +262,12 @@ async function saveStudentPhoto(supabase: SupabaseClient, student: Student) {
   if (!bucketReady) return student.photo
 
   const safeStudentId = student.id.replace(/[^a-zA-Z0-9_-]/g, '-')
-  const filePath = `${safeStudentId}/profile.${image.extension}`
+  // A versioned object path prevents browsers/CDNs from continuing to show an
+  // older photo after the administrator replaces it.
+  const filePath = `${safeStudentId}/profile-${Date.now()}.${image.extension}`
   const { error } = await supabase.storage.from(photoBucket).upload(filePath, image.bytes, {
     contentType: image.contentType,
+    cacheControl: '0',
     upsert: true,
   })
 

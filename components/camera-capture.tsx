@@ -4,10 +4,12 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, RefreshCw, Upload, Video, X } from 'lucide-react'
 import { useApp } from '@/components/app-provider'
+import { validateStudentFace } from '@/lib/photo-validation'
 
 interface CameraCaptureProps {
   onCapture: (photo: string) => void
   currentPhoto?: string
+  onFaceValidation?: (verified: boolean) => void
 }
 
 const MAX_PHOTO_SIDE = 760
@@ -48,7 +50,7 @@ async function fileToCompressedDataUrl(file: File): Promise<string> {
   }
 }
 
-export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, currentPhoto, onFaceValidation }: CameraCaptureProps) {
   const { t } = useApp()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -59,6 +61,7 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
   const [isCameraReady, setIsCameraReady] = useState(false)
   const [error, setError] = useState<string>('')
   const [isReadingFile, setIsReadingFile] = useState(false)
+  const [isCheckingFace, setIsCheckingFace] = useState(false)
   const [permissionStatus, setPermissionStatus] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown')
 
   useEffect(() => {
@@ -139,7 +142,29 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
     }
   }, [stream, isCameraActive])
 
-  const capturePhoto = useCallback(() => {
+  const acceptPhoto = useCallback(async (dataUrl: string) => {
+    setIsCheckingFace(true)
+    try {
+      const validation = await validateStudentFace(dataUrl)
+      if (validation.supported && !validation.hasFace) {
+        onFaceValidation?.(false)
+        setError('Foto recusada: nenhum rosto humano foi encontrado. Use uma foto clara do aluno, sem paisagens, animais ou objetos.')
+        return
+      }
+
+      setPhoto(dataUrl)
+      onCapture(dataUrl)
+      onFaceValidation?.(validation.supported)
+      setError('')
+    } catch {
+      onFaceValidation?.(false)
+      setError('Nao foi possivel verificar o rosto. Escolha outra foto clara do aluno.')
+    } finally {
+      setIsCheckingFace(false)
+    }
+  }, [onCapture, onFaceValidation])
+
+  const capturePhoto = useCallback(async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas) return
@@ -154,11 +179,9 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     const dataUrl = canvasToJpeg(canvas)
-    setPhoto(dataUrl)
-    onCapture(dataUrl)
-    setError('')
+    await acceptPhoto(dataUrl)
     stopCamera()
-  }, [onCapture, stopCamera])
+  }, [acceptPhoto, stopCamera])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -169,8 +192,7 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
     setError('')
     try {
       const dataUrl = await fileToCompressedDataUrl(file)
-      setPhoto(dataUrl)
-      onCapture(dataUrl)
+      await acceptPhoto(dataUrl)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to read the image file')
     } finally {
@@ -181,6 +203,7 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
   const retakePhoto = () => {
     setPhoto('')
     onCapture('')
+    onFaceValidation?.(false)
     setError('')
   }
 
@@ -202,7 +225,7 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
           <div className="text-center text-muted-foreground p-8">
             <Camera className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p className="font-medium">{t.studentPhoto}</p>
-            <p className="text-sm mt-2">{isReadingFile ? 'Preparando foto...' : (t.takeOrUploadPhoto || 'Take a photo or upload an image')}</p>
+            <p className="text-sm mt-2">{isReadingFile || isCheckingFace ? 'Verificando rosto do aluno...' : (t.takeOrUploadPhoto || 'Take a photo or upload an image')}</p>
             {error && <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg"><p className="text-red-500 text-sm">{error}</p></div>}
           </div>
         )}
@@ -225,7 +248,7 @@ export function CameraCapture({ onCapture, currentPhoto }: CameraCaptureProps) {
           </>
         ) : isCameraActive ? (
           <>
-            <Button type="button" onClick={capturePhoto} disabled={!isCameraReady} className="flex-1 bg-primary hover:bg-primary/90"><Camera className="w-4 h-4 mr-2" />{t.takePhoto}</Button>
+            <Button type="button" onClick={() => void capturePhoto()} disabled={!isCameraReady || isCheckingFace} className="flex-1 bg-primary hover:bg-primary/90"><Camera className="w-4 h-4 mr-2" />{t.takePhoto}</Button>
             <Button type="button" variant="outline" onClick={stopCamera} className="flex-1"><X className="w-4 h-4 mr-2" />{t.cancel}</Button>
           </>
         ) : (

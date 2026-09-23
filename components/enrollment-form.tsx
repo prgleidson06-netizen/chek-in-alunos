@@ -35,6 +35,8 @@ export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/st
   const [currentStep, setCurrentStep] = useState<Step>('personal')
   const [error, setError] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [photoConfirmed, setPhotoConfirmed] = useState(false)
+  const [faceVerified, setFaceVerified] = useState(false)
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -99,6 +101,10 @@ export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/st
       case 'photo':
         if (!formData.photo) {
           setError(t.photoRequired)
+          return false
+        }
+        if (!photoConfirmed) {
+          setError('Confirme que a foto mostra claramente o rosto do aluno. Paisagens, animais, objetos ou fotos de outra pessoa nao sao permitidos.')
           return false
         }
         break
@@ -182,7 +188,7 @@ export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/st
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(student),
+        body: JSON.stringify({ ...student, photoPolicyConfirmed: photoConfirmed }),
       })
 
       if (!res.ok) {
@@ -416,10 +422,37 @@ export function EnrollmentForm({ onComplete, onCancel, submitEndpoint = '/api/st
           {currentStep === 'photo' && (
             <div className="space-y-4">
               <Label>{t.studentPhoto} *</Label>
+              <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm font-semibold text-red-700 dark:text-red-300">
+                Obrigatorio: envie uma foto atual com o rosto do aluno claramente visivel. Paisagens, animais, objetos e fotos de outra pessoa serao recusados.
+              </div>
               <CameraCapture
-                onCapture={(photo) => updateField('photo', photo)}
+                onCapture={(photo) => {
+                  updateField('photo', photo)
+                  setPhotoConfirmed(false)
+                }}
                 currentPhoto={formData.photo}
+                onFaceValidation={setFaceVerified}
               />
+              {formData.photo && (
+                <div className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                    A foto deve mostrar claramente o rosto do aluno. Nao envie paisagens, animais, objetos ou a foto de outra pessoa.
+                  </p>
+                  {faceVerified && <p className="text-xs font-medium text-green-600 dark:text-green-400">Rosto detectado na imagem.</p>}
+                  <label className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={photoConfirmed}
+                      onChange={(event) => {
+                        setPhotoConfirmed(event.target.checked)
+                        setError('')
+                      }}
+                    />
+                    <span>Confirmo que esta e uma foto atual do aluno e que o rosto dele aparece claramente.</span>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 

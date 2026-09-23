@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getStudent } from '@/lib/server-storage'
 import { ArrowLeft, Printer } from 'lucide-react'
+import { StudentIdPhotoEditor } from '@/components/student-id-photo-editor'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,11 +98,7 @@ export default async function StudentIdCard({ params }: { params: Promise<{ id: 
           <div className="relative z-10">
             <div className="flex items-start justify-between gap-5">
               <img src="/images/fju-logo.png" alt="FJU" className="h-24 w-auto max-w-[260px] object-contain" />
-              <img
-                src={photo}
-                alt={fullName}
-                className="h-36 w-36 rounded-[10px] border border-red-700 object-cover"
-              />
+              <StudentIdPhotoEditor studentId={studentId} photoUrl={photo} studentName={fullName} />
             </div>
 
             <p className="mt-8 text-lg font-black uppercase tracking-[0.42em] text-red-300">Digital ID Card</p>

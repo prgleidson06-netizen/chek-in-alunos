@@ -32,6 +32,13 @@ export async function POST(request: Request) {
       )
     }
 
+    if (!student?.photo || student?.photoPolicyConfirmed !== true) {
+      return NextResponse.json(
+        { error: 'Envie e confirme uma foto atual que mostre claramente o rosto do aluno. Paisagens, animais e objetos nao sao permitidos.' },
+        { status: 400, headers: jsonHeaders() },
+      )
+    }
+
     if (await hasDuplicateStudent(student as Student)) {
       return NextResponse.json(
         { error: 'Esta matricula ja existe no sistema.' },

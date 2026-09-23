@@ -20,36 +20,11 @@ import {
   getClasses,
   saveClass,
 } from '@/lib/database'
+import { preparePhotoFile, validateStudentFace } from '@/lib/photo-validation'
 
 function studentPhotoSrc(student: Student) {
   const version = encodeURIComponent(student.updatedAt || student.createdAt || student.id || 'photo')
   return student.id ? `/api/student-photo/${encodeURIComponent(student.id)}?v=${version}` : '/images/fju-badge.jpg'
-}
-
-async function prepareStudentPhoto(file: File) {
-  if (file.type && !file.type.startsWith('image/')) throw new Error('Escolha um arquivo de imagem.')
-  if (file.size > 12 * 1024 * 1024) throw new Error('A foto deve ter no maximo 12 MB.')
-
-  const objectUrl = URL.createObjectURL(file)
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const preview = new Image()
-      preview.onload = () => resolve(preview)
-      preview.onerror = () => reject(new Error('Nao foi possivel abrir essa foto.'))
-      preview.src = objectUrl
-    })
-    const longestSide = Math.max(image.naturalWidth, image.naturalHeight)
-    const scale = Math.min(1, 900 / longestSide)
-    const canvas = document.createElement('canvas')
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Nao foi possivel preparar essa foto.')
-    context.drawImage(image, 0, 0, canvas.width, canvas.height)
-    return canvas.toDataURL('image/jpeg', 0.78)
-  } finally {
-    URL.revokeObjectURL(objectUrl)
-  }
 }
 
 type StudentDraft = Partial<Student> & Record<string, any>
@@ -448,7 +423,13 @@ export function AdminPanel() {
     if (!file) return
 
     try {
-      updateStudentField('photo', await prepareStudentPhoto(file))
+      const photo = await preparePhotoFile(file)
+      const validation = await validateStudentFace(photo)
+      if (validation.supported && !validation.hasFace) {
+        throw new Error('Foto recusada: nenhum rosto humano foi encontrado.')
+      }
+      if (!window.confirm('Confirma que esta foto mostra claramente o rosto do aluno?')) return
+      updateStudentField('photo', photo)
       toast.success('Nova foto selecionada. Clique em Salvar aluno para confirmar.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Nao foi possivel carregar a foto.')

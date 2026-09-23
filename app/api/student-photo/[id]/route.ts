@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
-import { getSignedStoragePhotoUrl, getSignedStoragePhotoUrlByOwnerId, getStudentRawImage } from '@/lib/server-storage'
+import { getSignedStoragePhotoUrl, getSignedStoragePhotoUrlByOwnerId, getStudent, getStudentRawImage, saveStudentRecord } from '@/lib/server-storage'
+import { isAdminRequest } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -106,4 +107,28 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   if (byOwner) return redirectTo(request, byOwner, true)
 
   return redirectTo(request, FALLBACK, false)
+}
+
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ error: 'Acesso administrativo necessario.' }, { status: 401 })
+  }
+
+  try {
+    const { id } = await context.params
+    const studentId = decodeURIComponent(id || '')
+    const { photo } = await request.json()
+    if (!studentId || typeof photo !== 'string' || !photo.startsWith('data:image/')) {
+      return NextResponse.json({ error: 'Foto invalida.' }, { status: 400 })
+    }
+
+    const student = await getStudent(studentId)
+    if (!student) return NextResponse.json({ error: 'Aluno nao encontrado.' }, { status: 404 })
+
+    const saved = await saveStudentRecord({ ...student, photo })
+    return NextResponse.json({ success: true, updatedAt: saved.updatedAt })
+  } catch (error) {
+    console.error('student-photo update failed:', error)
+    return NextResponse.json({ error: 'Nao foi possivel atualizar a foto.' }, { status: 500 })
+  }
 }
