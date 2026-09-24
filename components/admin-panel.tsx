@@ -184,6 +184,7 @@ export function AdminPanel() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [studentDraft, setStudentDraft] = useState<StudentDraft | null>(null)
+  const [savingPhotoId, setSavingPhotoId] = useState<string | null>(null)
   const [classDraft, setClassDraft] = useState<ClassDraft | null>(null)
   const initialReportDates = useMemo(defaultReportDates, [])
   const [reportStart, setReportStart] = useState(initialReportDates.start)
@@ -353,6 +354,35 @@ export function AdminPanel() {
     } catch (error) {
       console.error('Erro ao remover aluno:', error)
       toast.error('Nao foi possivel remover o aluno.')
+    }
+  }
+
+  const handleQuickPhotoChange = async (student: Student, file: File | null) => {
+    if (!file || savingPhotoId) return
+    setSavingPhotoId(student.id)
+
+    try {
+      const photo = await preparePhotoFile(file)
+      const validation = await validateStudentFace(photo)
+      if (validation.supported && !validation.hasFace) {
+        throw new Error('Foto recusada: nenhum rosto humano foi encontrado.')
+      }
+      if (!window.confirm(`Confirma que esta foto mostra claramente o rosto de ${getStudentName(student)}?`)) return
+
+      const response = await fetch(`/api/student-photo/${encodeURIComponent(student.id)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || 'Nao foi possivel atualizar a foto.')
+
+      toast.success('Foto atualizada em todas as paginas do aluno.')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Nao foi possivel atualizar a foto.')
+    } finally {
+      setSavingPhotoId(null)
     }
   }
 
@@ -573,7 +603,21 @@ export function AdminPanel() {
                       <p className="text-xs text-red-400">Faixa: {getStudentBelt(student)} • Aulas: {student.totalClasses || 0}</p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <label className={`inline-flex h-9 items-center justify-center gap-1 rounded-md border border-red-700 px-3 text-sm font-medium text-red-300 transition hover:bg-red-950 ${savingPhotoId ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                      <Upload className="h-4 w-4" />
+                      {savingPhotoId === student.id ? 'Salvando...' : 'Trocar foto'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        disabled={Boolean(savingPhotoId)}
+                        onChange={(event) => {
+                          void handleQuickPhotoChange(student, event.target.files?.[0] || null)
+                          event.target.value = ''
+                        }}
+                      />
+                    </label>
                     <Button size="sm" variant="outline" className="border-zinc-700 text-zinc-200" onClick={() => setStudentDraft({ ...student })}>
                       <Edit2 className="w-4 h-4 mr-1" />
                       Alterar
